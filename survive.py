@@ -105,10 +105,10 @@ class Player(Character):
     IMAGE_SCALE = 1.2
 
     delta = {  # 押下キーと移動量の辞書
-        pg.K_UP: (0, -1),
-        pg.K_DOWN: (0, +1),
-        pg.K_LEFT: (-1, 0),
-        pg.K_RIGHT: (+1, 0),
+        pg.K_w: (0, -1),
+        pg.K_s: (0, +1),
+        pg.K_a: (-1, 0),
+        pg.K_d: (+1, 0),
     }
 
     def __init__(self, xy: list[int, int], hp=50, max_invincible_tick=50):
@@ -156,7 +156,7 @@ class Player(Character):
         """
         super().update()
         sum_mv = [0, 0]
-        for k, mv in __class__.delta.items():
+        for k, mv in Player.delta.items():
             if key_lst[k]:
                 self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
                 sum_mv[0] += mv[0]
