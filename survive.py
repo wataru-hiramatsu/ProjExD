@@ -48,13 +48,13 @@ class Character(pg.sprite.Sprite):
         self.hp = hp
         self.max_invincible_tick = max_invincible_tick
         self.invincible_tmr = -1
-        self.imgs: dict[int, list[Surface, (int | None)]] = {}
+        self._imgs: dict[int, list[Surface, (int | None)]] = {}
         self.set_image(image, 0)
         self.rect = image.get_rect()
         self.rect.center = position
     
     def set_image(self, image: Surface, priority: int, valid_time: int | None = None):
-        self.imgs[priority] = [image, valid_time]
+        self._imgs[priority] = [image, valid_time]
 
     def give_damage(self, damage: int) -> int:
         if self.invincible_tmr <= 0:
@@ -70,14 +70,14 @@ class Character(pg.sprite.Sprite):
 
     def update(self):
         self.invincible_tmr = max(self.invincible_tmr - 1, -1)
-        if len(self.imgs) > 0:
-            idx = max(self.imgs)
-            self.image = self.imgs[idx][0]
-            if self.imgs[idx][1] != None:
-                if self.imgs[idx][1] < 0:
-                    del self.imgs[idx]
+        if len(self._imgs) > 0:
+            idx = max(self._imgs)
+            self.image = self._imgs[idx][0]
+            if self._imgs[idx][1] != None:
+                if self._imgs[idx][1] < 0:
+                    del self._imgs[idx]
                 else:
-                    self.imgs[idx][1] -= 1
+                    self._imgs[idx][1] -= 1
 
 
 def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
@@ -111,14 +111,14 @@ class Player(Character):
         pg.K_RIGHT: (+1, 0),
     }
 
-    def __init__(self, num: int, xy: list[int, int], hp=50, max_invincible_tick=50):
+    def __init__(self, xy: list[int, int], hp=50, max_invincible_tick=50):
         """
         こうかとん画像Surfaceを生成する
         引数1 num：こうかとん画像ファイル名の番号
         引数2 xy：こうかとん画像の位置座標タプル 
         """
         img0 = pg.transform.rotozoom(
-            pg.image.load(f"ex04/fig/{num}.png"), 0, self.IMAGE_SCALE)
+            pg.image.load(f"ex04/fig/3.png"), 0, self.IMAGE_SCALE)
         img = pg.transform.flip(img0, True, False)  # デフォルトのこうかとん
         self.move_imgs = {
             (+1, 0): img,  # 右
@@ -212,10 +212,10 @@ class Enemy(Character):
     """
     敵機に関するクラス
     """
-    imgs = [pg.image.load(f"EX04/fig/alien{i}.png") for i in range(1, 4)]
+    img = [pg.image.load(f"EX04/fig/alien{i}.png") for i in range(1, 4)]
 
     def __init__(self, hp: int, spawn_point: list[int, int], chase_target: Character):
-        super().__init__(random.choice(__class__.imgs), spawn_point, hp)
+        super().__init__(pg.image.load(f"EX04/fig/alien1.png"), spawn_point, hp)
         self.speed = 5
         self.chase_target = chase_target
 
@@ -258,7 +258,7 @@ def main():
     for i in range(-2, 3):
         for j in range(-1, 2):
             background.add(Background(camera, (i, j)))
-    player = Player(3, [0, 0])
+    player = Player([0, 0])
     player_group = Group_support_camera(camera, player)
     beams = Group_support_camera(camera)
     emys = Group_support_camera(camera)
