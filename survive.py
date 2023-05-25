@@ -19,7 +19,7 @@ class Camera():
         self.center_pos = center_pos
 
 
-class Group_custom(pg.sprite.Group):
+class Group_support_camera(pg.sprite.Group):
     def __init__(self, camera: Camera, *sprites: Sprite | Sequence[Sprite]) -> None:
         super().__init__(*sprites)
         self.camera = camera
@@ -43,12 +43,18 @@ class Group_custom(pg.sprite.Group):
 
 
 class Character(pg.sprite.Sprite):
-    def __init__(self, hp: int, max_invincible_tick=0) -> None:
+    def __init__(self, image: Surface, position: tuple[int, int], hp: int, max_invincible_tick=0) -> None:
         super().__init__()
         self.hp = hp
         self.max_invincible_tick = max_invincible_tick
         self.invincible_tmr = -1
         self.imgs: dict[int, list[Surface, (int | None)]] = {}
+        self.set_image(image, 0)
+        self.rect = image.get_rect()
+        self.rect.center = position
+    
+    def set_image(self, image: Surface, priority: int, valid_time: int | None = None):
+        self.imgs[priority] = [image, valid_time]
 
     def give_damage(self, damage: int) -> int:
         if self.invincible_tmr <= 0:
@@ -91,7 +97,7 @@ def calc_norm(org: pg.Rect, dst: pg.Rect) -> float:
     return math.sqrt(x_diff ** 2 + y_diff ** 2)
 
 
-class Bird(Character):
+class Player(Character):
     """
     ゲームキャラクター（こうかとん）に関するクラス
     """
@@ -111,7 +117,6 @@ class Bird(Character):
         引数1 num：こうかとん画像ファイル名の番号
         引数2 xy：こうかとん画像の位置座標タプル 
         """
-        super().__init__(hp, max_invincible_tick=max_invincible_tick)
         img0 = pg.transform.rotozoom(
             pg.image.load(f"ex04/fig/{num}.png"), 0, self.IMAGE_SCALE)
         img = pg.transform.flip(img0, True, False)  # デフォルトのこうかとん
@@ -126,24 +131,18 @@ class Bird(Character):
             (+1, +1): pg.transform.rotozoom(img, -45, 1.0),  # 右下
         }
         self.dire = (1, 0)
-        self.imgs[0] = [self.move_imgs[self.dire], None]
-        self.image = self.imgs[0][0]
-        self.rect = self.image.get_rect()
-        self.rect.center = xy
+
+        super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_tick=max_invincible_tick)
         self.speed = 10
 
-    def change_img(self, num: int, priority: int, life_tick: int | None = None):
+    def change_img(self, num: int, priority: int, life: int | None = None):
         """
         こうかとん画像を切り替え，画面に転送する
         引数1 num：こうかとん画像ファイル名の番号
         引数2 screen：画面Surface
         """
 
-        self.imgs[priority] = [
-            pg.transform.rotozoom(
-                pg.image.load(f"ex04/fig/{num}.png"), 0, self.IMAGE_SCALE),
-            life_tick
-        ]
+        self.set_image(pg.transform.rotozoom(pg.image.load(f"ex04/fig/{num}.png"), 0, self.IMAGE_SCALE), priority, life)
 
     def damaged(self):
         super().damaged()
@@ -164,7 +163,7 @@ class Bird(Character):
                 sum_mv[1] += mv[1]
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
-            self.imgs[0][0] = self.move_imgs[self.dire]
+            self.set_image(self.move_imgs[self.dire], 0)
 
     def get_direction(self) -> tuple[int, int]:
         return self.dire
@@ -179,21 +178,21 @@ class Beam(pg.sprite.Sprite):
     """
     MAX_LIFE_TICK = 250
 
-    def __init__(self, bird: Bird):
+    def __init__(self, player: Player):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
         """
         super().__init__()
-        self.vx, self.vy = bird.get_direction()
+        self.vx, self.vy = player.get_direction()
         angle = math.degrees(math.atan2(-self.vy, self.vx))
         self.image = pg.Surface((20, 20))
         self.rect = self.image.get_rect()
         pg.draw.rect(self.image, (255, 0, 0), self.rect)
         self.image = pg.transform.rotozoom(self.image, angle, 1)
 
-        self.rect.centery = bird.rect.centery + bird.rect.height * self.vy
-        self.rect.centerx = bird.rect.centerx + bird.rect.width * self.vx
+        self.rect.centery = player.rect.centery + player.rect.height * self.vy
+        self.rect.centerx = player.rect.centerx + player.rect.width * self.vx
         self.speed = 20
 
         self.life_tmr = 0
@@ -216,10 +215,7 @@ class Enemy(Character):
     imgs = [pg.image.load(f"EX04/fig/alien{i}.png") for i in range(1, 4)]
 
     def __init__(self, hp: int, spawn_point: list[int, int], chase_target: Character):
-        super().__init__(hp)
-        self.image = random.choice(__class__.imgs)
-        self.rect = self.image.get_rect()
-        self.rect.center = spawn_point
+        super().__init__(random.choice(__class__.imgs), spawn_point, hp)
         self.speed = 5
         self.chase_target = chase_target
 
@@ -258,14 +254,14 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))
 
     camera = Camera([0, 0])
-    background = Group_custom(camera)
+    background = Group_support_camera(camera)
     for i in range(-2, 3):
         for j in range(-1, 2):
             background.add(Background(camera, (i, j)))
-    bird = Bird(3, [0, 0])
-    bird_group = Group_custom(camera, bird)
-    beams = Group_custom(camera)
-    emys = Group_custom(camera)
+    player = Player(3, [0, 0])
+    player_group = Group_support_camera(camera, player)
+    beams = Group_support_camera(camera)
+    emys = Group_support_camera(camera)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -276,7 +272,7 @@ def main():
                 return 0
 
         if tmr % 5 == 0:
-            beams.add(Beam(bird))
+            beams.add(Beam(player))
 
         if tmr % 30 == 0:
             angle = random.randint(0, 360)
@@ -288,34 +284,34 @@ def main():
                 20,
                 [camera.center_pos[0] + (spawn_dir[0] * 1000),
                      camera.center_pos[1] + (spawn_dir[1] * 1000)],
-                bird)
+                player)
             )
 
         for enemy in pg.sprite.groupcollide(emys, beams, False, True).keys():
             enemy.give_damage(10)
 
-        for _ in pg.sprite.spritecollide(bird, emys, False):
-            bird.give_damage(10)
+        for _ in pg.sprite.spritecollide(player, emys, False):
+            player.give_damage(10)
 
         background.update()
         background.draw(screen)
 
-        if bird.hp <= 0:
-            bird.change_img(8, 10, 250)
-            bird.update(key_lst)
-            bird_group.draw(screen)
+        if player.hp <= 0:
+            player.change_img(8, 10, 250)
+            player.update(key_lst)
+            player_group.draw(screen)
             pg.display.update()
             time.sleep(2)
             return
 
-        bird.update(key_lst)
+        player.update(key_lst)
         beams.update()
         emys.update()
 
-        camera.center_pos[0] = bird.rect.centerx
-        camera.center_pos[1] = bird.rect.centery
+        camera.center_pos[0] = player.rect.centerx
+        camera.center_pos[1] = player.rect.centery
         
-        bird_group.draw(screen)
+        player_group.draw(screen)
         beams.draw(screen)
         emys.draw(screen)
         pg.display.update()
