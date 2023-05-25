@@ -178,21 +178,20 @@ class Beam(pg.sprite.Sprite):
     """
     MAX_LIFE_TICK = 250
 
-    def __init__(self, player: Player):
+    def __init__(self, position: tuple[int, int], direction: tuple[float, float]):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
         """
         super().__init__()
-        self.vx, self.vy = player.get_direction()
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
-        self.image = pg.Surface((20, 20))
+        self.vx, self.vy = direction
+        self.image = pg.Surface((20, 10))
         self.rect = self.image.get_rect()
         pg.draw.rect(self.image, (255, 0, 0), self.rect)
+        angle = math.degrees(math.atan2(-self.vy, self.vx))
         self.image = pg.transform.rotozoom(self.image, angle, 1)
 
-        self.rect.centery = player.rect.centery + player.rect.height * self.vy
-        self.rect.centerx = player.rect.centerx + player.rect.width * self.vx
+        self.rect.center = position
         self.speed = 20
 
         self.life_tmr = 0
@@ -271,9 +270,6 @@ def main():
             if event.type == pg.QUIT:
                 return 0
 
-        if tmr % 5 == 0:
-            beams.add(Beam(player))
-
         if tmr % 30 == 0:
             angle = random.randint(0, 360)
             spawn_dir = [
@@ -303,14 +299,23 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
-
+        
         player.update(key_lst)
+        camera.center_pos[0] = player.rect.centerx
+        camera.center_pos[1] = player.rect.centery
+
+        if tmr % 5 == 0:
+            mouse_pos = list(pg.mouse.get_pos())
+            mouse_pos[0] -= WIDTH / 2
+            mouse_pos[1] -= HEIGHT / 2
+            image = pg.Surface((200, 200))
+            rect = image.get_rect()
+            rect.center = (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1])
+
+            beams.add(Beam(player.rect.center, calc_orientation(player.rect, rect)))
         beams.update()
         emys.update()
 
-        camera.center_pos[0] = player.rect.centerx
-        camera.center_pos[1] = player.rect.centery
-        
         player_group.draw(screen)
         beams.draw(screen)
         emys.draw(screen)
