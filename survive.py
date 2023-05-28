@@ -2,23 +2,24 @@ import math
 import random
 import sys
 import time
-from typing import Any, List, Sequence
+from typing import List, Sequence
 
 import pygame as pg
 from pygame.rect import Rect
-from pygame.sprite import AbstractGroup, Sprite
+from pygame.sprite import Sprite
 from pygame.surface import Surface
-
-
-WIDTH = 1600  # ゲームウィンドウの幅
-HEIGHT = 900  # ゲームウィンドウの高さ
-
 
 class Camera():
     """
     カメラに関するクラス
     """
-    def __init__(self, center_pos: list[float] = [0, 0]) -> None:
+    def __init__(self, screen: Surface, center_pos: list[float] = [0, 0]) -> None:
+        """
+        カメラを生成する関数
+        引数1: 描画先のSurface
+        引数2: カメラのスポーン位置（カメラ中心位置が原点）
+        """
+        self.screen = screen
         self.center_pos = center_pos
 
 
@@ -38,8 +39,8 @@ class Group_support_camera(pg.sprite.Group):
         # カメラ位置だけSprite達をずらす
         for sprite in self.sprites():
             sprite.rect.move_ip(
-                -self.camera.center_pos[0] + WIDTH / 2,
-                -self.camera.center_pos[1] + HEIGHT / 2
+                -self.camera.center_pos[0] + self.camera.screen.get_width() / 2,
+                -self.camera.center_pos[1] + self.camera.screen.get_height() / 2
             )
 
         # 描画
@@ -48,8 +49,8 @@ class Group_support_camera(pg.sprite.Group):
         # 動かしたSprite達の位置を戻す
         for sprite in self.sprites():
             sprite.rect.move_ip(
-                self.camera.center_pos[0] - WIDTH / 2,
-                self.camera.center_pos[1] - HEIGHT / 2
+                self.camera.center_pos[0] - self.camera.screen.get_width() / 2,
+                self.camera.center_pos[1] - self.camera.screen.get_height() / 2
             )
 
         return rst
@@ -101,7 +102,7 @@ class Character(pg.sprite.Sprite):
 
     def damaged(self):
         """
-        キャラにダメージを与えられた際に呼ばれる関数。
+        ダメージを与えられた際に呼ばれる関数。
         """
         pass
 
@@ -325,10 +326,10 @@ class Background(pg.sprite.Sprite):
 
 def main():
     pg.display.set_caption("サバイブ")
-    screen = pg.display.set_mode((WIDTH, HEIGHT))
+    screen = pg.display.set_mode((1600, 900))
 
     # 様々な変数の初期化
-    camera = Camera([0, 0])
+    camera = Camera(screen, [0, 0])
     background = Group_support_camera(camera)
     for i in range(-2, 3):
         for j in range(-1, 2):
@@ -392,8 +393,8 @@ def main():
         # 数秒おきにマウス方向に銃弾を飛ばす
         if tmr % 5 == 0:
             mouse_pos = list(pg.mouse.get_pos())
-            mouse_pos[0] -= WIDTH / 2
-            mouse_pos[1] -= HEIGHT / 2
+            mouse_pos[0] -= screen.get_width() / 2
+            mouse_pos[1] -= screen.get_height() / 2
             # TODO: 処理の無駄が多いのでこの辺を書き直す
             image = pg.Surface((200, 200))
             rect = image.get_rect()
