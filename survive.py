@@ -292,6 +292,59 @@ class Enemy(Character):
         self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
 
 
+class BOSS(Character):
+    """
+    ボスに関するクラス
+    """
+    def __init__(self, hp: int, spawn_point: list[int, int], attack_target: Character):
+        """
+        ボスを生成する関数
+        引数3: 攻撃を加える対象
+        """
+        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex04/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, 0)
+        self.speed = 5
+        self.attack_target = attack_target
+
+    def update(self):
+        """
+        ボスを移動させる関数
+        """
+        super().update()
+
+        # 攻撃対象に近づき過ぎたら止まる（0割り対策）
+        if calc_norm(self.rect, self.attack_target.rect) < 50:
+            return
+        dir = list(calc_orientation(self.rect, self.attack_target.rect))
+        self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
+
+
+class Flame(pg.sprite.Sprite):
+    """
+    ボスが放つ攻撃に関するクラス
+    """
+    MAX_LIFE_TICK_2 = 200
+    def __init__(self, boss_attack: "BOSS", player: Character):
+        super().__init__()
+        self.image = pg.transform.rotozoom((pg.image.load("ex05.beta/fig/flame.png")), 0, 0.1)
+        self.rect = self.image.get_rect()
+        # flameを放つbossから見た攻撃対象のplayerの方向を計算
+        self.vx, self.vy = calc_orientation(boss_attack.rect, player.rect)  
+        self.rect.centerx = boss_attack.rect.centerx
+        self.rect.centery = boss_attack.rect.centery+boss_attack.rect.height/2
+        self.speed = 5
+        self.life_tmr = 0
+
+    def update(self):
+        """
+        攻撃を速度ベクトルself.vx, self.vyに基づき移動させる
+        引数 screen：画面Surface
+        """
+        self.rect.move_ip(+self.speed*self.vx, +self.speed*self.vy)
+        if self.life_tmr > self.MAX_LIFE_TICK_2:
+            self.kill()
+        self.life_tmr += 1
+
+
 class Background(pg.sprite.Sprite):
     """
     背景に関するクラス
@@ -338,6 +391,8 @@ def main():
     player_group = Group_support_camera(camera, player)
     bullets = Group_support_camera(camera)
     enemies = Group_support_camera(camera)
+    boss = Group_support_camera(camera)
+    flame = Group_support_camera(camera)
     tmr = 0
     clock = pg.time.Clock()
 
@@ -362,13 +417,43 @@ def main():
                 player)
             )
 
+        if tmr % 150 == 0:
+            # カメラ中心位置から何pxか離れた位置に敵をスポーン
+            angle = random.randint(0, 360)
+            spawn_dir = [
+                math.cos(math.radians(angle)),
+                -math.sin(math.radians(angle))
+            ]
+            boss.add(BOSS(
+                50,
+                [camera.center_pos[0] + (spawn_dir[0] * 1000),
+                     camera.center_pos[1] + (spawn_dir[1] * 1000)],
+                player)
+            )
+        # 一定間隔ごとにボスが攻撃を放つ
+        for boss_attack in boss:
+            if (tmr%50) == 0:
+                flame.add(Flame(boss_attack, player))
+
         # 敵と銃弾の当たり判定処理
         for enemy in pg.sprite.groupcollide(enemies, bullets, False, True).keys():
             enemy.give_damage(10)
 
+        # 銃弾とボスの攻撃の当たり判定処理
+        pg.sprite.groupcollide(flame, bullets, True, True)
+
         # 敵とプレイヤーの当たり判定処理
         for _ in pg.sprite.spritecollide(player, enemies, False):
             player.give_damage(10)
+
+        # 敵とプレイヤーの当たり判定処理
+        for j in pg.sprite.spritecollide(player, flame, True):
+            player.give_damage(10)
+
+        # ボスと銃弾の当たり判定処理
+        for b in pg.sprite.groupcollide(boss, bullets, False, True):
+            b.give_damage(10)
+
 
         # 背景の更新＆描画処理
         background.update()
@@ -405,11 +490,17 @@ def main():
         bullets.update()
         # 敵の更新処理
         enemies.update()
+        # ボスの更新処理
+        boss.update()
+        # ボスの攻撃の更新処理
+        flame.update()
 
         # 描画周りの処理
         player_group.draw(screen)
         bullets.draw(screen)
         enemies.draw(screen)
+        boss.draw(screen)
+        flame.draw(screen)
         pg.display.update()
 
         # タイマー
