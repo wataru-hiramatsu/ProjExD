@@ -372,7 +372,7 @@ class Flame(pg.sprite.Sprite):
     MAX_LIFE_TICK_2 = 200
     def __init__(self, boss_attack: "BOSS", player: Character):
         super().__init__()
-        self.image = pg.transform.rotozoom((pg.image.load("ex05.beta/fig/flame.png")), 0, 0.1)
+        self.image = pg.transform.rotozoom((pg.image.load("ex05/fig/flame.png")), 0, 0.1)
         self.rect = self.image.get_rect()
         # flameを放つbossから見た攻撃対象のplayerの方向を計算
         self.vx, self.vy = calc_orientation(boss_attack.rect, player.rect)  
