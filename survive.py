@@ -9,6 +9,9 @@ from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
 
+WIDTH = 1600  # ゲームウィンドウの幅
+HEIGHT = 900  # ゲームウィンドウの高さ
+
 class Camera():
     """
     カメラに関するクラス
@@ -183,6 +186,8 @@ class Player(Character):
         }
         self.dire = (1, 0)
 
+        
+
         super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_tick)
         self.speed = 10
 
@@ -204,7 +209,7 @@ class Player(Character):
         # 数秒間だけ専用画像に切り替える
         self.change_img(8, 5, 20)
 
-    def update(self, key_lst: list[bool]):
+    def update(self, key_lst: list[bool],dtime):
         """
         押下キーに応じてPlayerを移動させる
         引数1: key_lst：押下キーの真理値リスト
@@ -219,6 +224,8 @@ class Player(Character):
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.set_image(self.move_imgs[self.dire], 0)
+
+        self.speed = 500 * dtime
 
     def get_direction(self) -> tuple[int, int]:
         """
@@ -252,6 +259,9 @@ class Bullet(pg.sprite.Sprite):
         pg.draw.rect(self.image, (255, 0, 0), self.rect)
         angle = math.degrees(math.atan2(-self.vy, self.vx))
         self.image = pg.transform.rotozoom(self.image, angle, 1)
+        
+        self.image.set_colorkey((0,0,0))
+
         self.rect.center = position
         self.speed = 20
         self.life_tmr = 0
@@ -275,22 +285,29 @@ class Enemy(Character):
         敵を生成する関数
         引数3: 攻撃を加える対象
         """
-        super().__init__(pg.image.load(f"EX04/fig/alien1.png"), spawn_point, hp)
+
+        imgs = [pg.image.load(f"ex05/fig/zonbi{i}.png") for i in range(1, 4)]
+
+        imgs[0] = pg.transform.scale(imgs[0],(random.randint(90,150),random.randint(90,150)))
+        imgs[1] = pg.transform.scale(imgs[1],(random.randint(90,150),random.randint(90,150)))
+        imgs[2] = pg.transform.scale(imgs[2],(random.randint(90,150),random.randint(90,150)))
+
+        super().__init__(random.choice(imgs), spawn_point, hp)
         self.speed = 5
         self.attack_target = attack_target
 
-    def update(self):
+    def update(self,screen,dtime):
         """
         敵を移動させる関数
         """
         super().update()
-
+        self.speed = 100 * dtime
         # 攻撃対象に近づき過ぎたら止まる（0割り対策）
         if calc_norm(self.rect, self.attack_target.rect) < 50:
             return
+        print(self.speed)
         dir = list(calc_orientation(self.rect, self.attack_target.rect))
         self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
-
 
 class Background(pg.sprite.Sprite):
     """
@@ -325,6 +342,9 @@ class Background(pg.sprite.Sprite):
 
 
 def main():
+    dtime = 0 # 前のフレームからどのくらい経ったか
+    gameFlag = False
+
     pg.display.set_caption("サバイブ")
     screen = pg.display.set_mode((1600, 900))
 
@@ -338,6 +358,11 @@ def main():
     player_group = Group_support_camera(camera, player)
     bullets = Group_support_camera(camera)
     enemies = Group_support_camera(camera)
+
+    my_HPbar = Group_support_camera(camera)
+    enemyHPbar = Group_support_camera(camera)
+
+
     tmr = 0
     clock = pg.time.Clock()
 
@@ -348,7 +373,8 @@ def main():
                 return 0
 
         # 数秒おきに敵をスポーンさせる処理
-        if tmr % 30 == 0:
+        if tmr % 3 == 0:
+            
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
             angle = random.randint(0, 360)
             spawn_dir = [
@@ -377,21 +403,48 @@ def main():
         # ゲームオーバー処理
         # TODO: この位置にゲームオーバーがあるのは何となく微妙なので書き直す
         if player.hp <= 0:
+            font = pg.font.Font(None, 250)
+            image = font.render(f"Game Over", 0, (255,0,0))
+            img_rct = image.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT/2)
+            screen.blit(image, img_rct)
+
             player.change_img(8, 10, 250)
-            player.update(key_lst)
+            player.update(key_lst,dtime)
+            player_group.draw(screen)
+            pg.display.update()
+            time.sleep(2)
+            return
+        
+        if tmr > 1000:
+            gameFlag = True
+        
+        # print(tmr)
+
+        # ゲームクリアの処理
+        if gameFlag == True:
+            # game clear
+            font = pg.font.Font(None, 250)
+            image = font.render(f"Game Clear", 0, (0,255,0))
+            img_rct = image.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT/2)
+            screen.blit(image, img_rct)
+
+            player.change_img(9, 10, 250)
+            player.update(key_lst,dtime)
             player_group.draw(screen)
             pg.display.update()
             time.sleep(2)
             return
         
         # プレイヤー更新処理
-        player.update(key_lst)
+        player.update(key_lst,dtime)
         # カメラをプレイヤーに追従させる処理
         camera.center_pos[0] = player.rect.centerx
         camera.center_pos[1] = player.rect.centery
 
         # 数秒おきにマウス方向に銃弾を飛ばす
-        if tmr % 5 == 0:
+        if tmr %  20 == 0:
             mouse_pos = list(pg.mouse.get_pos())
             mouse_pos[0] -= screen.get_width() / 2
             mouse_pos[1] -= screen.get_height() / 2
@@ -400,21 +453,24 @@ def main():
             rect = image.get_rect()
             rect.center = (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1])
             bullets.add(Bullet(player.rect.center, calc_orientation(player.rect, rect)))
+        
 
         # 銃弾の更新処理
         bullets.update()
         # 敵の更新処理
-        enemies.update()
+        enemies.update(screen,dtime)
 
         # 描画周りの処理
         player_group.draw(screen)
         bullets.draw(screen)
         enemies.draw(screen)
+        enemies.update(screen,dtime)
         pg.display.update()
 
+        
         # タイマー
         tmr += 1
-        clock.tick(50)
+        dtime = clock.tick(50)/1000
 
 
 if __name__ == "__main__":
