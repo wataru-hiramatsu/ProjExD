@@ -8,6 +8,26 @@ import pygame as pg
 from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
+import pygame
+import numpy as np
+from pygame.locals import *
+
+pygame.init()
+pygame.mixer.init()
+
+sample_rate = 44100  # Sound sample rate (CD quality)
+duration = 500  # Sound duration in milliseconds
+volume = 0.5  # Sound volume (0.0 to 1.0)
+
+# Generate sound data array
+num_channels = 2  # Stereo sound
+sound_data = np.zeros((sample_rate * duration // 1000, num_channels), dtype=np.int16)
+for i in range(sample_rate * duration // 1000):
+    sound_data[i] = int(volume * 32767 * (i < duration)), int(volume * 32767 * (i < duration))
+
+# Create sound object
+sound_array = pygame.sndarray.make_sound(sound_data)
+
 
 
 WIDTH = 1600  # ゲームウィンドウの幅
@@ -192,6 +212,14 @@ class Player(Character):
         super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_tick)
         self.speed = 10
 
+        self.attack_interval = 10
+        self.attack_number = 1
+        
+        
+
+        
+        
+
     def change_img(self, num: int, priority: int, life: int | None = None):
         """
         Player画像を設定する関数
@@ -278,6 +306,25 @@ class Bullet(pg.sprite.Sprite):
             self.kill()
         self.life_tmr += 1 * dtime
 
+def gen_beams(player: Player, targer_angle: float) -> list[Bullet]:
+    """
+    gen_beams関数で，
+    ‐30°～+31°の角度の範囲で指定ビーム数の分だけBeamオブジェクトを生成し，
+    リストにappendする → リストを返す
+    """
+    start_angle = -30
+    end_angle = 31
+    
+    range_size = end_angle - start_angle
+    angle_interval = range_size / (2)
+
+    angles = [(start_angle + i * angle_interval)+targer_angle for i in range(3)]
+
+    # print(angles)
+
+    neo_beams = [Bullet(player.rect.center, (math.cos(angles[i]), math.sin(angles[i]))) for i in range(3)]
+    return neo_beams
+
 
 class Enemy(Character):
     """
@@ -311,6 +358,60 @@ class Enemy(Character):
         dir = list(calc_orientation(self.rect, self.attack_target.rect))
         self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
 
+
+class BOSS(Character):
+    """
+    ボスに関するクラス
+    """
+    def __init__(self, hp: int, spawn_point: list[int, int], attack_target: Character):
+        """
+        ボスを生成する関数
+        引数3: 攻撃を加える対象
+        """
+        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex04/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, 0)
+        self.speed = 5
+        self.attack_target = attack_target
+
+    def update(self):
+        """
+        ボスを移動させる関数
+        """
+        super().update()
+
+        # 攻撃対象に近づき過ぎたら止まる（0割り対策）
+        if calc_norm(self.rect, self.attack_target.rect) < 50:
+            return
+        dir = list(calc_orientation(self.rect, self.attack_target.rect))
+        self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
+
+
+class Flame(pg.sprite.Sprite):
+    """
+    ボスが放つ攻撃に関するクラス
+    """
+    MAX_LIFE_TICK_2 = 200
+    def __init__(self, boss_attack: "BOSS", player: Character):
+        super().__init__()
+        self.image = pg.transform.rotozoom((pg.image.load("ex05/fig/flame.png")), 0, 0.1)
+        self.rect = self.image.get_rect()
+        # flameを放つbossから見た攻撃対象のplayerの方向を計算
+        self.vx, self.vy = calc_orientation(boss_attack.rect, player.rect)  
+        self.rect.centerx = boss_attack.rect.centerx
+        self.rect.centery = boss_attack.rect.centery+boss_attack.rect.height/2
+        self.speed = 5
+        self.life_tmr = 0
+
+    def update(self):
+        """
+        攻撃を速度ベクトルself.vx, self.vyに基づき移動させる
+        引数 screen：画面Surface
+        """
+        self.rect.move_ip(+self.speed*self.vx, +self.speed*self.vy)
+        if self.life_tmr > self.MAX_LIFE_TICK_2:
+            self.kill()
+        self.life_tmr += 1
+
+
 class Background(pg.sprite.Sprite):
     """
     背景に関するクラス
@@ -342,6 +443,25 @@ class Background(pg.sprite.Sprite):
         self.rect.topleft = (x_offset * self.rect.width,
                              y_offset * self.rect.height)
 
+class Score:
+    """
+    倒した敵の数をスコアとして表示するクラス
+    敵：30点
+    """
+    def __init__(self,camera:Camera):
+        self.font = pg.font.Font(None, 50)
+        self.color = (0, 0, 255)
+        self.score = 0
+        self.image = self.font.render(f"Score: {self.score}", 0, self.color)
+        self.rect = self.image.get_rect()
+        self.rect.center = 100, camera.screen.get_height()-50
+
+    def score_up(self, add):
+        self.score += add
+
+    def update(self, screen: pg.Surface):
+        self.image = self.font.render(f"Score: {self.score}", 0, self.color)
+        screen.blit(self.image, self.rect)
 
 def main():
     dtime = 1 # 前のフレームからどのくらい経ったか
@@ -360,13 +480,12 @@ def main():
     player_group = Group_support_camera(camera, player)
     bullets = Group_support_camera(camera)
     enemies = Group_support_camera(camera)
-
-    my_HPbar = Group_support_camera(camera)
-    enemyHPbar = Group_support_camera(camera)
-
-
+    boss = Group_support_camera(camera)
+    flame = Group_support_camera(camera)
     tmr = 0
     clock = pg.time.Clock()
+    
+    score = Score(camera)
 
     clk = 0
 
@@ -377,6 +496,15 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
+
+        if score.score >= 500 and score.score < 1500:
+            player.attack_interval = 5
+
+        elif score.score >= 3000:
+            player.attack_interval = 5
+            player.attack_number = 3
+            
+        sound_array.play()
 
         # 数秒おきに敵をスポーンさせる処理
         if tmr % 3 == 0:
@@ -393,13 +521,45 @@ def main():
                 player)
             )
 
+        if tmr % 150 == 0:
+            # カメラ中心位置から何pxか離れた位置に敵をスポーン
+            angle = random.randint(0, 360)
+            spawn_dir = [
+                math.cos(math.radians(angle)),
+                -math.sin(math.radians(angle))
+            ]
+            boss.add(BOSS(
+                50,
+                [camera.center_pos[0] + (spawn_dir[0] * 1000),
+                     camera.center_pos[1] + (spawn_dir[1] * 1000)],
+                player)
+            )
+        # 一定間隔ごとにボスが攻撃を放つ
+        for boss_attack in boss:
+            if (tmr%50) == 0:
+                flame.add(Flame(boss_attack, player))
+
         # 敵と銃弾の当たり判定処理
         for enemy in pg.sprite.groupcollide(enemies, bullets, False, True).keys():
             enemy.give_damage(10)
+            if enemy.hp <= 0:
+                score.score_up(30)
+
+        # 銃弾とボスの攻撃の当たり判定処理
+        pg.sprite.groupcollide(flame, bullets, True, True)
 
         # 敵とプレイヤーの当たり判定処理
         for _ in pg.sprite.spritecollide(player, enemies, False):
             player.give_damage(10)
+
+        # 敵とプレイヤーの当たり判定処理
+        for j in pg.sprite.spritecollide(player, flame, True):
+            player.give_damage(10)
+
+        # ボスと銃弾の当たり判定処理
+        for b in pg.sprite.groupcollide(boss, bullets, False, True):
+            b.give_damage(10)
+
 
         # 背景の更新＆描画処理
         background.update()
@@ -469,17 +629,24 @@ def main():
         bullets.update(dtime)
         # 敵の更新処理
         enemies.update(screen,dtime)
+        # ボスの更新処理
+        boss.update()
+        # ボスの攻撃の更新処理
+        flame.update()
+
+        # other 
+        # pygame.display.flip()
 
         # 描画周りの処理
         player_group.draw(screen)
         bullets.draw(screen)
         enemies.draw(screen)
-        enemies.update(screen,dtime)
+        boss.draw(screen)
+        flame.draw(screen)
+        score.update(screen)
         pg.display.update()
-
         suvivetime += dtime
         clk += dtime
-        
         # タイマー
         tmr += 1
         dtime = clock.tick(50)/1000
