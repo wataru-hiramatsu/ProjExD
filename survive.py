@@ -212,7 +212,7 @@ class Player(Character):
         super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_tick)
         self.speed = 10
 
-        self.attack_interval = 10
+        self.attack_interval = 0.2
         self.attack_number = 1
         
         
@@ -498,10 +498,10 @@ def main():
                 return 0
 
         if score.score >= 500 and score.score < 1500:
-            player.attack_interval = 5
+            player.attack_interval = 0.1
 
         elif score.score >= 1500:
-            player.attack_interval = 5
+            player.attack_interval = 0.1
             player.attack_number = 3
             
         sound_array.play()
@@ -548,6 +548,7 @@ def main():
         # 銃弾とボスの攻撃の当たり判定処理
         pg.sprite.groupcollide(flame, bullets, True, True)
 
+
         # 敵とプレイヤーの当たり判定処理
         for _ in pg.sprite.spritecollide(player, enemies, False):
             player.give_damage(10)
@@ -559,7 +560,8 @@ def main():
         # ボスと銃弾の当たり判定処理
         for b in pg.sprite.groupcollide(boss, bullets, False, True):
             b.give_damage(10)
-
+            if b.hp <= 0:
+                score.score_up(40)
 
         # 背景の更新＆描画処理
         background.update()
@@ -613,7 +615,7 @@ def main():
         camera.center_pos[1] = player.rect.centery
 
         # 数秒おきにマウス方向に銃弾を飛ばす
-        if clk > 0.2:
+        if clk > player.attack_interval:
             clk = 0
             mouse_pos = list(pg.mouse.get_pos())
             mouse_pos[0] -= screen.get_width() / 2
@@ -622,7 +624,13 @@ def main():
             image = pg.Surface((200, 200))
             rect = image.get_rect()
             rect.center = (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1])
-            bullets.add(Bullet(player.rect.center, calc_orientation(player.rect, rect)))
+            direction =  calc_orientation(player.rect, rect)
+            if player.attack_number == 3:
+                bs = gen_beams(player,math.atan2(direction[1],direction[0]))
+                for b in bs:
+                    bullets.add(b)
+            else:
+                bullets.add(Bullet(player.rect.center, direction))
         
 
         # 銃弾の更新処理
