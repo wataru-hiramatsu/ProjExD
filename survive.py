@@ -370,6 +370,8 @@ def main():
 
     clk = 0
 
+    suvivetime = 0
+
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -397,7 +399,7 @@ def main():
 
         # 敵とプレイヤーの当たり判定処理
         for _ in pg.sprite.spritecollide(player, enemies, False):
-            player.give_damage(0)
+            player.give_damage(10)
 
         # 背景の更新＆描画処理
         background.update()
@@ -419,8 +421,14 @@ def main():
             time.sleep(2)
             return
         
-        if tmr > 10000:
+        if int(suvivetime) >= 60:
             gameFlag = True
+
+        font = pg.font.Font(None, 250)
+        image = font.render(f"{int(60 - suvivetime)}", 0, (0,255,0))
+        img_rct = image.get_rect()
+        img_rct.center = (WIDTH/2, 100)
+        screen.blit(image, img_rct)
         
         # ゲームクリアの処理
         if gameFlag == True:
@@ -469,6 +477,7 @@ def main():
         enemies.update(screen,dtime)
         pg.display.update()
 
+        suvivetime += dtime
         clk += dtime
         
         # タイマー
