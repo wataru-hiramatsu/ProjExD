@@ -8,6 +8,26 @@ import pygame as pg
 from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
+import pygame
+import numpy as np
+from pygame.locals import *
+
+pygame.init()
+pygame.mixer.init()
+
+sample_rate = 44100  # Sound sample rate (CD quality)
+duration = 500  # Sound duration in milliseconds
+volume = 0.5  # Sound volume (0.0 to 1.0)
+
+# Generate sound data array
+num_channels = 2  # Stereo sound
+sound_data = np.zeros((sample_rate * duration // 1000, num_channels), dtype=np.int16)
+for i in range(sample_rate * duration // 1000):
+    sound_data[i] = int(volume * 32767 * (i < duration)), int(volume * 32767 * (i < duration))
+
+# Create sound object
+sound_array = pygame.sndarray.make_sound(sound_data)
+
 
 class Camera():
     """
@@ -347,6 +367,9 @@ def main():
             if event.type == pg.QUIT:
                 return 0
 
+        sound_array.play()
+
+
         # 数秒おきに敵をスポーンさせる処理
         if tmr % 30 == 0:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
@@ -405,6 +428,9 @@ def main():
         bullets.update()
         # 敵の更新処理
         enemies.update()
+
+        # other 
+        pygame.display.flip()
 
         # 描画周りの処理
         player_group.draw(screen)
