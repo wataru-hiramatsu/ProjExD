@@ -9,6 +9,7 @@ from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
 
+
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
 
@@ -266,14 +267,16 @@ class Bullet(pg.sprite.Sprite):
         self.speed = 20
         self.life_tmr = 0
 
-    def update(self):
+    def update(self,dtime):
         """
         銃弾を移動させる
         """
+        self.speed = 1000 * dtime
+
         self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
         if self.life_tmr > self.MAX_LIFE_TICK:
             self.kill()
-        self.life_tmr += 1
+        self.life_tmr += 1 * dtime
 
 
 class Enemy(Character):
@@ -305,7 +308,6 @@ class Enemy(Character):
         # 攻撃対象に近づき過ぎたら止まる（0割り対策）
         if calc_norm(self.rect, self.attack_target.rect) < 50:
             return
-        print(self.speed)
         dir = list(calc_orientation(self.rect, self.attack_target.rect))
         self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
 
@@ -342,7 +344,7 @@ class Background(pg.sprite.Sprite):
 
 
 def main():
-    dtime = 0 # 前のフレームからどのくらい経ったか
+    dtime = 1 # 前のフレームからどのくらい経ったか
     gameFlag = False
 
     pg.display.set_caption("サバイブ")
@@ -366,6 +368,8 @@ def main():
     tmr = 0
     clock = pg.time.Clock()
 
+    clk = 0
+
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -374,7 +378,6 @@ def main():
 
         # 数秒おきに敵をスポーンさせる処理
         if tmr % 3 == 0:
-            
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
             angle = random.randint(0, 360)
             spawn_dir = [
@@ -394,7 +397,7 @@ def main():
 
         # 敵とプレイヤーの当たり判定処理
         for _ in pg.sprite.spritecollide(player, enemies, False):
-            player.give_damage(10)
+            player.give_damage(0)
 
         # 背景の更新＆描画処理
         background.update()
@@ -416,11 +419,9 @@ def main():
             time.sleep(2)
             return
         
-        if tmr > 1000:
+        if tmr > 10000:
             gameFlag = True
         
-        # print(tmr)
-
         # ゲームクリアの処理
         if gameFlag == True:
             # game clear
@@ -444,7 +445,8 @@ def main():
         camera.center_pos[1] = player.rect.centery
 
         # 数秒おきにマウス方向に銃弾を飛ばす
-        if tmr %  20 == 0:
+        if clk > 0.2:
+            clk = 0
             mouse_pos = list(pg.mouse.get_pos())
             mouse_pos[0] -= screen.get_width() / 2
             mouse_pos[1] -= screen.get_height() / 2
@@ -456,7 +458,7 @@ def main():
         
 
         # 銃弾の更新処理
-        bullets.update()
+        bullets.update(dtime)
         # 敵の更新処理
         enemies.update(screen,dtime)
 
@@ -467,6 +469,7 @@ def main():
         enemies.update(screen,dtime)
         pg.display.update()
 
+        clk += dtime
         
         # タイマー
         tmr += 1
