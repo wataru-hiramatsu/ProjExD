@@ -193,7 +193,7 @@ class Player(Character):
         引数3: ダメージを受けた際の無敵時間（任意）
         """
         img0 = pg.transform.rotozoom(
-            pg.image.load(f"ex04/fig/3.png"), 0, self.IMAGE_SCALE)
+            pg.image.load(f"ex05/fig/3.png"), 0, self.IMAGE_SCALE)
         img = pg.transform.flip(img0, True, False)
         self.move_imgs = {
             (+1, 0): img,  # 右
@@ -227,7 +227,7 @@ class Player(Character):
         引数2: 画像の優先度
         引数3: 表示する期間（Noneで無期限）
         """
-        self.set_image(pg.transform.rotozoom(pg.image.load(f"ex04/fig/{num}.png"), 0, self.IMAGE_SCALE), priority, life)
+        self.set_image(pg.transform.rotozoom(pg.image.load(f"ex05/fig/{num}.png"), 0, self.IMAGE_SCALE), priority, life)
 
     def damaged(self):
         """
@@ -368,7 +368,7 @@ class BOSS(Character):
         ボスを生成する関数
         引数3: 攻撃を加える対象
         """
-        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex04/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, 0)
+        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, 0)
         self.speed = 5
         self.attack_target = attack_target
 
