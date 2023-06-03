@@ -8,25 +8,9 @@ import pygame as pg
 from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
-import pygame
-import numpy as np
-from pygame.locals import *
 
-pygame.init()
-pygame.mixer.init()
-
-sample_rate = 44100  # Sound sample rate (CD quality)
-duration = 500  # Sound duration in milliseconds
-volume = 0.5  # Sound volume (0.0 to 1.0)
-
-# Generate sound data array
-num_channels = 2  # Stereo sound
-sound_data = np.zeros((sample_rate * duration // 1000, num_channels), dtype=np.int16)
-for i in range(sample_rate * duration // 1000):
-    sound_data[i] = int(volume * 32767 * (i < duration)), int(volume * 32767 * (i < duration))
-
-# Create sound object
-sound_array = pygame.sndarray.make_sound(sound_data)
+pg.init()
+pg.mixer.init()
 
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
@@ -35,7 +19,10 @@ class Camera():
     """
     カメラに関するクラス
     """
-    def __init__(self, screen: Surface, center_pos: list[float] = [0, 0]) -> None:
+
+    active_camera: "Camera" = None
+
+    def __init__(self, screen: Surface, center_pos: list[float] = [0, 0], is_acrive_now=True) -> None:
         """
         カメラを生成する関数
         引数1: 描画先のSurface
@@ -43,6 +30,8 @@ class Camera():
         """
         self.screen = screen
         self.center_pos = center_pos
+        if is_acrive_now:
+            self.__class__.active_camera = self
 
 
 class Group_support_camera(pg.sprite.Group):
@@ -126,7 +115,17 @@ class Character(pg.sprite.Sprite):
         """
         ダメージを与えられた際に呼ばれる関数。
         """
-        pass
+        # カメラからの距離によって音量を変える
+        volume_range = 1500
+        volume = max((volume_range - calc_norm(self.rect.center, Camera.active_camera.center_pos)) / volume_range, 0)
+        if self.hp > 0:
+            sound = pg.mixer.Sound("ex05/fig/se_enemy_damage.mp3")
+            sound.set_volume(volume)
+            sound.play()
+        else:
+            sound = pg.mixer.Sound("ex05/fig/se_enemy_death.mp3")
+            sound.set_volume(volume)
+            sound.play()
 
     def update(self, delta_time: float):
         # 無敵時間を減らす処理
@@ -164,7 +163,16 @@ def calc_norm(org: pg.Rect, dst: pg.Rect) -> float:
     引数2 dst:Rect
     戻り値:距離
     """
-    x_diff, y_diff = dst.centerx - org.centerx, dst.centery - org.centery
+    return calc_norm(org.center, dst.center)
+
+def calc_norm(org: tuple[int, int], dst: tuple[int, int]) -> float:
+    """
+    orgとdstとの間の距離を返す関数
+    引数1 org:座標
+    引数2 dst:座標
+    戻り値:距離
+    """
+    x_diff, y_diff = dst[0] - org[0], dst[1] - org[1]
     return math.sqrt(x_diff ** 2 + y_diff ** 2)
 
 
@@ -500,8 +508,6 @@ def main():
         elif score.score >= 1500:
             player.attack_interval = 0.1
             player.attack_number = 3
-            
-        sound_array.play()
 
         # 数秒おきに敵をスポーンさせる処理
         if enemy_spawn_interval_tmr > 0.5:
@@ -618,6 +624,7 @@ def main():
             bs = gen_beams(bullet_img, player, angle, enemies, bullet_count=player.attack_number, speed=1000)
             for b in bs:
                 bullets.add(b)
+            pg.mixer.Sound("ex05/fig/se_bullet.mp3").play()
 
         # 敵の更新処理
         enemies.update(dtime)
