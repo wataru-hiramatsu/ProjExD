@@ -314,24 +314,21 @@ class Bullet(pg.sprite.Sprite):
                 score.score_up(damage_target.get_score())
 
 
-def gen_beams(image: Surface, player: Player, targer_angle: float, attackable_group: pg.sprite.Group) -> list[Bullet]:
+def gen_beams(image: Surface, player: Player, target_rad: float, attackable_group: pg.sprite.Group) -> list[Bullet]:
     """
     gen_beams関数で，
     ‐30°～+31°の角度の範囲で指定ビーム数の分だけBeamオブジェクトを生成し，
     リストにappendする → リストを返す
     """
-    start_angle = -30
-    end_angle = 31
-    
-    range_size = end_angle - start_angle
-    angle_interval = range_size / (2)
+    count = 3
+    interval_rad = math.radians(30) / (count - 1) if count != 0 else 0
+    rad_range = interval_rad * (count - 1) if count != 0 else 0
 
-    angles = [(start_angle + i * angle_interval)+targer_angle for i in range(3)]
-
-    # print(angles)
-
-    neo_beams = [Bullet(image, player.rect.center, (math.cos(angles[i]), math.sin(angles[i])), attackable_group) for i in range(3)]
-    return neo_beams
+    bullets: list[Bullet] = []
+    for i in range(count):
+        rad = i * interval_rad - rad_range / 2 + target_rad
+        bullets.append(Bullet(image, player.rect.center, (math.cos(rad), math.sin(rad)), attackable_group))
+    return bullets
 
 class Enemy_Base(Character):
     def __init__(self, image: Surface, position: tuple[int, int], hp: int, max_invincible_sec=0, score=0) -> None:
