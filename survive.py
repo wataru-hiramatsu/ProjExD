@@ -147,14 +147,14 @@ class Character(pg.sprite.Sprite):
                 self._imgs[idx][1] -= delta_time
 
 
-def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
+def calc_orientation(org: tuple[int, int], dst: tuple[int, int]) -> tuple[float, float]:
     """
     orgから見てdstがどこにあるかを計算し方向ベクトルを返す関数
-    引数1 org:Rect
-    引数2 dst:Rect
+    引数1 org:座標
+    引数2 dst:座標
     戻り値:orgから見たdstの方向ベクトルを表すタプル
     """
-    x_diff, y_diff = dst.centerx - org.centerx, dst.centery - org.centery
+    x_diff, y_diff = dst[0] - org[0], dst[1] - org[1]
     norm = math.sqrt(x_diff ** 2 + y_diff ** 2)
     return x_diff / norm, y_diff / norm
 
@@ -272,10 +272,7 @@ class Bullet(pg.sprite.Sprite):
     弾に関するクラス
     """
 
-    # 銃弾が消えるまでの時間
-    MAX_LIFE_TICK = 250
-
-    def __init__(self, position: tuple[int, int], direction: tuple[float, float], damage: int = 10):
+    def __init__(self, image: Surface, position: tuple[int, int], direction: tuple[float, float], attackable_group: pg.sprite.Group, speed=500, damage: int=10, life_sec=5, is_fix_rotation_img=False):
         """
         銃弾Surfaceを生成する
         引数1: スポーン位置
@@ -283,40 +280,41 @@ class Bullet(pg.sprite.Sprite):
         """
         super().__init__()
         self.vx, self.vy = direction
-        self.image = pg.Surface((20, 10))
+        self.image = image
+        if not is_fix_rotation_img:
+            angle = math.degrees(math.atan2(-self.vy, self.vx))
+            self.image = pg.transform.rotozoom(image, angle, 1)
+            self.image.set_colorkey((0,0,0))
         self.rect = self.image.get_rect()
-        pg.draw.rect(self.image, (255, 0, 0), self.rect)
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
-        self.image = pg.transform.rotozoom(self.image, angle, 1)
         
-        self.image.set_colorkey((0,0,0))
-
         self.rect.center = position
-        self.speed = 20
+        self.speed = speed
         self.life_tmr = 0
+        self.attackable_group = attackable_group
         self.damage = damage
+        self.max_life_sec = life_sec
 
-    def update(self, dtime: float, enemies: pg.sprite.Group, score: "Score"):
+    def update(self, dtime: float, score: "Score"):
         """
         銃弾を移動させる
         """
-        self.speed = 1000 * dtime
 
-        self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
-        if self.life_tmr > self.MAX_LIFE_TICK:
+        self.rect.move_ip(self.speed * self.vx * dtime, self.speed * self.vy * dtime)
+        if self.life_tmr > self.max_life_sec:
             self.kill()
         self.life_tmr += dtime
 
-        for enemy in pg.sprite.spritecollide(self, enemies, False):
+        for damage_target in pg.sprite.spritecollide(self, self.attackable_group, False):
             self.kill()
 
-            enemy = cast(Enemy_Base, enemy)
-            enemy.give_damage(self.damage)
-            if enemy.hp <= 0:
-                score.score_up(enemy.get_score())
+            damage_target = cast(Character, damage_target)
+            damage_target.give_damage(self.damage)
+            # TODO: Enemy_Baseに依存させるのは良くないのでIScoreable的なのを作ってそこに依存させる
+            if damage_target.hp <= 0 and issubclass(type(damage_target), Enemy_Base):
+                score.score_up(damage_target.get_score())
 
 
-def gen_beams(player: Player, targer_angle: float) -> list[Bullet]:
+def gen_beams(player: Player, targer_angle: float, attackable_group: pg.sprite.Group) -> list[Bullet]:
     """
     gen_beams関数で，
     ‐30°～+31°の角度の範囲で指定ビーム数の分だけBeamオブジェクトを生成し，
@@ -332,7 +330,7 @@ def gen_beams(player: Player, targer_angle: float) -> list[Bullet]:
 
     # print(angles)
 
-    neo_beams = [Bullet(player.rect.center, (math.cos(angles[i]), math.sin(angles[i]))) for i in range(3)]
+    neo_beams = [Bullet(player.rect.center, (math.cos(angles[i]), math.sin(angles[i])), attackable_group) for i in range(3)]
     return neo_beams
 
 class Enemy_Base(Character):
@@ -393,6 +391,7 @@ class BOSS(Enemy_Base):
         self.attack_target = attack_target
         self.enemy_bullet_group = enemy_bullet_group
         self._attack_interval_tmr = 0.0
+        self.bullet_img = pg.transform.rotozoom((pg.image.load("ex05/fig/flame.png")), 0, 0.1)
 
     def update(self, delta_time: float):
         """
@@ -408,36 +407,10 @@ class BOSS(Enemy_Base):
 
         # 一定間隔で射撃を行う
         if self._attack_interval_tmr > self.ATTACK_INTERVAL_SEC:
-            self.enemy_bullet_group.add(Flame(self, self.attack_target))
+            direction = calc_orientation(self.rect.midbottom, self.attack_target.rect.center)  
+            self.enemy_bullet_group.add(Bullet(self.bullet_img, self.rect.midbottom, direction, self.attack_target.groups()[0], is_fix_rotation_img=True))
             self._attack_interval_tmr = 0
         self._attack_interval_tmr += delta_time
-
-# TODO: Bulletクラスに統合させる
-class Flame(pg.sprite.Sprite):
-    """
-    ボスが放つ攻撃に関するクラス
-    """
-    MAX_LIFE_TICK_2 = 4
-    def __init__(self, boss_attack: "BOSS", player: Character):
-        super().__init__()
-        self.image = pg.transform.rotozoom((pg.image.load("ex05/fig/flame.png")), 0, 0.1)
-        self.rect = self.image.get_rect()
-        # flameを放つbossから見た攻撃対象のplayerの方向を計算
-        self.vx, self.vy = calc_orientation(boss_attack.rect, player.rect)  
-        self.rect.centerx = boss_attack.rect.centerx
-        self.rect.centery = boss_attack.rect.centery+boss_attack.rect.height/2
-        self.speed = 500
-        self.life_tmr = 0
-
-    def update(self, delta_time: float):
-        """
-        攻撃を速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
-        """
-        self.rect.move_ip(+self.speed*self.vx * delta_time, +self.speed*self.vy * delta_time)
-        if self.life_tmr > self.MAX_LIFE_TICK_2:
-            self.kill()
-        self.life_tmr += delta_time
 
 
 class Background(pg.sprite.Sprite):
@@ -589,10 +562,6 @@ def main():
         for _ in pg.sprite.spritecollide(player, enemies, False):
             player.give_damage(10)
 
-        # 敵とプレイヤーの当たり判定処理
-        for j in pg.sprite.spritecollide(player, flame, True):
-            player.give_damage(10)
-
         # ボスと銃弾の当たり判定処理
         for b in pg.sprite.groupcollide(boss, bullets, False, True):
             b.give_damage(10)
@@ -658,25 +627,25 @@ def main():
             mouse_pos[1] -= screen.get_height() / 2
             # TODO: 処理の無駄が多いのでこの辺を書き直す
             image = pg.Surface((200, 200))
-            rect = image.get_rect()
-            rect.center = (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1])
-            direction =  calc_orientation(player.rect, rect)
+            direction =  calc_orientation(player.rect.center, (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1]))
             if player.attack_number == 3:
                 bs = gen_beams(player,math.atan2(direction[1],direction[0]))
                 for b in bs:
                     bullets.add(b)
             else:
-                bullets.add(Bullet(player.rect.center, direction))
+                image = pg.Surface((20, 10))
+                pg.draw.rect(image, (255, 0, 0), image.get_rect())
+                bullets.add(Bullet(image, player.rect.center, direction, enemies, speed=1000))
         
 
         # 銃弾の更新処理
-        bullets.update(dtime, enemies, score)
+        bullets.update(dtime, score)
         # 敵の更新処理
         enemies.update(dtime)
         # ボスの更新処理
         boss.update(dtime)
         # ボスの攻撃の更新処理
-        flame.update(dtime)
+        flame.update(dtime, score)
 
         # other 
         # pygame.display.flip()
