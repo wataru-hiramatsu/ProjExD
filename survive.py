@@ -15,19 +15,6 @@ from pygame.locals import *
 pygame.init()
 pygame.mixer.init()
 
-sample_rate = 44100  # Sound sample rate (CD quality)
-duration = 500  # Sound duration in milliseconds
-volume = 0.5  # Sound volume (0.0 to 1.0)
-
-# Generate sound data array
-num_channels = 2  # Stereo sound
-sound_data = np.zeros((sample_rate * duration // 1000, num_channels), dtype=np.int16)
-for i in range(sample_rate * duration // 1000):
-    sound_data[i] = int(volume * 32767 * (i < duration)), int(volume * 32767 * (i < duration))
-
-# Create sound object
-sound_array = pygame.sndarray.make_sound(sound_data)
-
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
 
@@ -126,7 +113,10 @@ class Character(pg.sprite.Sprite):
         """
         ダメージを与えられた際に呼ばれる関数。
         """
-        pass
+        if self.hp > 0:
+            pg.mixer.Sound("ex05/fig/se_enemy_damage.mp3").play()
+        else:
+            pg.mixer.Sound("ex05/fig/se_enemy_death.mp3").play()
 
     def update(self, delta_time: float):
         # 無敵時間を減らす処理
@@ -500,8 +490,6 @@ def main():
         elif score.score >= 1500:
             player.attack_interval = 0.1
             player.attack_number = 3
-            
-        sound_array.play()
 
         # 数秒おきに敵をスポーンさせる処理
         if enemy_spawn_interval_tmr > 0.5:
@@ -618,6 +606,7 @@ def main():
             bs = gen_beams(bullet_img, player, angle, enemies, bullet_count=player.attack_number, speed=1000)
             for b in bs:
                 bullets.add(b)
+            pg.mixer.Sound("ex05/fig/se_bullet.mp3").play()
 
         # 敵の更新処理
         enemies.update(dtime)
