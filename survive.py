@@ -22,7 +22,10 @@ class Camera():
     """
     カメラに関するクラス
     """
-    def __init__(self, screen: Surface, center_pos: list[float] = [0, 0]) -> None:
+
+    active_camera: "Camera" = None
+
+    def __init__(self, screen: Surface, center_pos: list[float] = [0, 0], is_acrive_now=True) -> None:
         """
         カメラを生成する関数
         引数1: 描画先のSurface
@@ -30,6 +33,8 @@ class Camera():
         """
         self.screen = screen
         self.center_pos = center_pos
+        if is_acrive_now:
+            self.__class__.active_camera = self
 
 
 class Group_support_camera(pg.sprite.Group):
@@ -113,10 +118,17 @@ class Character(pg.sprite.Sprite):
         """
         ダメージを与えられた際に呼ばれる関数。
         """
+        # カメラからの距離によって音量を変える
+        volume_range = 1500
+        volume = max((volume_range - calc_norm(self.rect.center, Camera.active_camera.center_pos)) / volume_range, 0)
         if self.hp > 0:
-            pg.mixer.Sound("ex05/fig/se_enemy_damage.mp3").play()
+            sound = pg.mixer.Sound("ex05/fig/se_enemy_damage.mp3")
+            sound.set_volume(volume)
+            sound.play()
         else:
-            pg.mixer.Sound("ex05/fig/se_enemy_death.mp3").play()
+            sound = pg.mixer.Sound("ex05/fig/se_enemy_death.mp3")
+            sound.set_volume(volume)
+            sound.play()
 
     def update(self, delta_time: float):
         # 無敵時間を減らす処理
@@ -154,7 +166,16 @@ def calc_norm(org: pg.Rect, dst: pg.Rect) -> float:
     引数2 dst:Rect
     戻り値:距離
     """
-    x_diff, y_diff = dst.centerx - org.centerx, dst.centery - org.centery
+    return calc_norm(org.center, dst.center)
+
+def calc_norm(org: tuple[int, int], dst: tuple[int, int]) -> float:
+    """
+    orgとdstとの間の距離を返す関数
+    引数1 org:座標
+    引数2 dst:座標
+    戻り値:距離
+    """
+    x_diff, y_diff = dst[0] - org[0], dst[1] - org[1]
     return math.sqrt(x_diff ** 2 + y_diff ** 2)
 
 
