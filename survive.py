@@ -2,7 +2,7 @@ import math
 import random
 import sys
 import time
-from typing import List, Sequence
+from typing import List, Sequence, cast
 
 import pygame as pg
 from pygame.rect import Rect
@@ -325,12 +325,20 @@ def gen_beams(player: Player, targer_angle: float) -> list[Bullet]:
     neo_beams = [Bullet(player.rect.center, (math.cos(angles[i]), math.sin(angles[i]))) for i in range(3)]
     return neo_beams
 
+class Enemy_Base(Character):
+    def __init__(self, image: Surface, position: tuple[int, int], hp: int, max_invincible_sec=0, score=0) -> None:
+        super().__init__(image, position, hp, max_invincible_sec)
+        self._score = score
+    
+    def get_score(self) -> int:
+        return self._score
 
-class Enemy(Character):
+
+class Enemy(Enemy_Base):
     """
     敵に関するクラス
     """
-    def __init__(self, hp: int, spawn_point: list[int, int], attack_target: Character):
+    def __init__(self, spawn_point: list[int, int], attack_target: Character, hp=20, score=30):
         """
         敵を生成する関数
         引数3: 攻撃を加える対象
@@ -342,7 +350,7 @@ class Enemy(Character):
         imgs[1] = pg.transform.scale(imgs[1],(random.randint(90,150),random.randint(90,150)))
         imgs[2] = pg.transform.scale(imgs[2],(random.randint(90,150),random.randint(90,150)))
 
-        super().__init__(random.choice(imgs), spawn_point, hp)
+        super().__init__(random.choice(imgs), spawn_point, hp, score=score)
         self.speed = 5
         self.attack_target = attack_target
 
@@ -359,18 +367,18 @@ class Enemy(Character):
         self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
 
 
-class BOSS(Character):
+class BOSS(Enemy_Base):
     """
     ボスに関するクラス
     """
     ATTACK_INTERVAL_SEC = 1.0
 
-    def __init__(self, hp: int, spawn_point: list[int, int], attack_target: Character, enemy_bullet_group: pg.sprite.Group):
+    def __init__(self, spawn_point: list[int, int], attack_target: Character, enemy_bullet_group: pg.sprite.Group, hp=50, score=40):
         """
         ボスを生成する関数
         引数3: 攻撃を加える対象
         """
-        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, 0)
+        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, score=score)
         self.speed = 100
         self.attack_target = attack_target
         self.enemy_bullet_group = enemy_bullet_group
@@ -394,7 +402,7 @@ class BOSS(Character):
             self._attack_interval_tmr = 0
         self._attack_interval_tmr += delta_time
 
-
+# TODO: Bulletクラスに統合させる
 class Flame(pg.sprite.Sprite):
     """
     ボスが放つ攻撃に関するクラス
@@ -536,9 +544,10 @@ def main():
                 -math.sin(math.radians(angle))
             ]
             enemies.add(Enemy(
-                20,
-                [camera.center_pos[0] + (spawn_dir[0] * 1000),
-                     camera.center_pos[1] + (spawn_dir[1] * 1000)],
+                [
+                    camera.center_pos[0] + (spawn_dir[0] * 1000),
+                    camera.center_pos[1] + (spawn_dir[1] * 1000)
+                ],
                 player)
             )
             enemy_spawn_interval_tmr = 0
@@ -552,9 +561,10 @@ def main():
                 -math.sin(math.radians(angle))
             ]
             boss.add(BOSS(
-                50,
-                [camera.center_pos[0] + (spawn_dir[0] * 1000),
-                     camera.center_pos[1] + (spawn_dir[1] * 1000)],
+                [
+                    camera.center_pos[0] + (spawn_dir[0] * 1000),
+                    camera.center_pos[1] + (spawn_dir[1] * 1000)
+                ],
                 player,
                 flame)
             )
@@ -563,9 +573,10 @@ def main():
 
         # 敵と銃弾の当たり判定処理
         for enemy in pg.sprite.groupcollide(enemies, bullets, False, True).keys():
+            enemy = cast(Enemy_Base, enemy)
             enemy.give_damage(10)
             if enemy.hp <= 0:
-                score.score_up(30)
+                score.score_up(enemy.get_score())
 
         # 銃弾とボスの攻撃の当たり判定処理
         pg.sprite.groupcollide(flame, bullets, True, True)
