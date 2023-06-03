@@ -28,8 +28,6 @@ for i in range(sample_rate * duration // 1000):
 # Create sound object
 sound_array = pygame.sndarray.make_sound(sound_data)
 
-
-
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
 
@@ -206,19 +204,10 @@ class Player(Character):
             (+1, +1): pg.transform.rotozoom(img, -45, 1.0),  # 右下
         }
         self.dire = (1, 0)
-
-        
-
         super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_sec)
-        self.speed = 10
-
+        self.speed = 500
         self.attack_interval = 0.2
         self.attack_number = 1
-        
-        
-
-        
-        
 
     def change_img(self, num: int, priority: int, life: int | None = None):
         """
@@ -238,7 +227,7 @@ class Player(Character):
         # 数秒間だけ専用画像に切り替える
         self.change_img(8, 5, 2)
 
-    def update(self, key_lst: list[bool],dtime):
+    def update(self, key_lst: list[bool], dtime):
         """
         押下キーに応じてPlayerを移動させる
         引数1: key_lst：押下キーの真理値リスト
@@ -247,14 +236,12 @@ class Player(Character):
         sum_mv = [0, 0]
         for k, mv in Player.delta.items():
             if key_lst[k]:
-                self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
+                self.rect.move_ip(self.speed * mv[0] * dtime, self.speed * mv[1] * dtime)
                 sum_mv[0] += mv[0]
                 sum_mv[1] += mv[1]
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.set_image(self.move_imgs[self.dire], 0)
-
-        self.speed = 500 * dtime
 
     def get_direction(self) -> tuple[int, int]:
         """
@@ -286,7 +273,6 @@ class Bullet(pg.sprite.Sprite):
             self.image = pg.transform.rotozoom(image, angle, 1)
             self.image.set_colorkey((0,0,0))
         self.rect = self.image.get_rect()
-        
         self.rect.center = position
         self.speed = speed
         self.life_tmr = 0
@@ -298,12 +284,13 @@ class Bullet(pg.sprite.Sprite):
         """
         銃弾を移動させる
         """
-
+        # 移動
         self.rect.move_ip(self.speed * self.vx * dtime, self.speed * self.vy * dtime)
         if self.life_tmr > self.max_life_sec:
             self.kill()
         self.life_tmr += dtime
 
+        # 衝突判定
         for damage_target in pg.sprite.spritecollide(self, self.attackable_group, False):
             self.kill()
 
@@ -348,15 +335,12 @@ class Enemy(Enemy_Base):
         敵を生成する関数
         引数3: 攻撃を加える対象
         """
-
         imgs = [pg.image.load(f"ex05/fig/zonbi{i}.png") for i in range(1, 4)]
-
         imgs[0] = pg.transform.scale(imgs[0],(random.randint(90,150),random.randint(90,150)))
         imgs[1] = pg.transform.scale(imgs[1],(random.randint(90,150),random.randint(90,150)))
         imgs[2] = pg.transform.scale(imgs[2],(random.randint(90,150),random.randint(90,150)))
-
         super().__init__(random.choice(imgs), spawn_point, hp, score=score)
-        self.speed = 5
+        self.speed = 100
         self.attack_target = attack_target
 
     def update(self, dtime):
@@ -364,12 +348,11 @@ class Enemy(Enemy_Base):
         敵を移動させる関数
         """
         super().update(dtime)
-        self.speed = 100 * dtime
         # 攻撃対象に近づき過ぎたら止まる（0割り対策）
         if calc_norm(self.rect, self.attack_target.rect) < 50:
             return
         dir = list(calc_orientation(self.rect, self.attack_target.rect))
-        self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
+        self.rect.move_ip(dir[0] * self.speed * dtime, dir[1] * self.speed * dtime)
 
 
 class BOSS(Enemy_Base):
@@ -452,7 +435,7 @@ class Score:
         self.score = 0
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         self.rect = self.image.get_rect()
-        self.rect.center = 100, camera.screen.get_height()-50
+        self.rect.center = 100, camera.screen.get_height() - 50
 
     def score_up(self, add):
         self.score += add
@@ -482,13 +465,11 @@ def main():
     boss = Group_support_camera(camera)
     flame = Group_support_camera(camera)
     clock = pg.time.Clock()
-    
     score = Score(camera)
 
     clk = 0
     enemy_spawn_interval_tmr = 0
     boss_spawn_interval_tmr = 0
-
     suvivetime = 0
 
     while True:
@@ -573,10 +554,10 @@ def main():
         # TODO: この位置にゲームオーバーがあるのは何となく微妙なので書き直す
         if player.hp <= 0:
             font = pg.font.Font(None, 250)
-            image = font.render(f"Game Over", 0, (255,0,0))
-            img_rct = image.get_rect()
+            bullet_img = font.render(f"Game Over", 0, (255,0,0))
+            img_rct = bullet_img.get_rect()
             img_rct.center = (WIDTH/2, HEIGHT/2)
-            screen.blit(image, img_rct)
+            screen.blit(bullet_img, img_rct)
 
             player.change_img(8, 10, 250)
             player.update(key_lst,dtime)
@@ -589,19 +570,19 @@ def main():
             gameFlag = True
 
         font = pg.font.Font(None, 250)
-        image = font.render(f"{int(60 - suvivetime)}", 0, (0,255,0))
-        img_rct = image.get_rect()
+        bullet_img = font.render(f"{int(60 - suvivetime)}", 0, (0,255,0))
+        img_rct = bullet_img.get_rect()
         img_rct.center = (WIDTH/2, 100)
-        screen.blit(image, img_rct)
+        screen.blit(bullet_img, img_rct)
         
         # ゲームクリアの処理
         if gameFlag == True:
             # game clear
             font = pg.font.Font(None, 250)
-            image = font.render(f"Game Clear", 0, (0,255,0))
-            img_rct = image.get_rect()
+            bullet_img = font.render(f"Game Clear", 0, (0,255,0))
+            img_rct = bullet_img.get_rect()
             img_rct.center = (WIDTH/2, HEIGHT/2)
-            screen.blit(image, img_rct)
+            screen.blit(bullet_img, img_rct)
 
             player.change_img(9, 10, 250)
             player.update(key_lst,dtime)
@@ -622,30 +603,26 @@ def main():
             mouse_pos = list(pg.mouse.get_pos())
             mouse_pos[0] -= screen.get_width() / 2
             mouse_pos[1] -= screen.get_height() / 2
-            # TODO: 処理の無駄が多いのでこの辺を書き直す
-            image = pg.Surface((200, 200))
-            image = pg.Surface((20, 10))
-            pg.draw.rect(image, (255, 0, 0), image.get_rect())
             direction =  calc_orientation(player.rect.center, (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1]))
+
+            bullet_img = pg.Surface((20, 10))
+            pg.draw.rect(bullet_img, (255, 0, 0), bullet_img.get_rect())
             if player.attack_number == 3:
-                bs = gen_beams(image, player,math.atan2(direction[1],direction[0]), enemies)
+                bs = gen_beams(bullet_img, player,math.atan2(direction[1],direction[0]), enemies)
                 for b in bs:
                     bullets.add(b)
             else:
-                bullets.add(Bullet(image, player.rect.center, direction, enemies, speed=1000))
+                bullets.add(Bullet(bullet_img, player.rect.center, direction, enemies, speed=1000))
         
 
-        # 銃弾の更新処理
-        bullets.update(dtime, score)
         # 敵の更新処理
         enemies.update(dtime)
         # ボスの更新処理
         boss.update(dtime)
+        # 銃弾の更新処理
+        bullets.update(dtime, score)
         # ボスの攻撃の更新処理
         flame.update(dtime, score)
-
-        # other 
-        # pygame.display.flip()
 
         # 描画周りの処理
         player_group.draw(screen)
@@ -655,9 +632,10 @@ def main():
         flame.draw(screen)
         score.update(screen)
         pg.display.update()
+
         suvivetime += dtime
         clk += dtime
-        dtime = clock.tick(max_fps)/1000
+        dtime = clock.tick(max_fps) / 1000
 
 
 if __name__ == "__main__":
