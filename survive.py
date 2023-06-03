@@ -363,7 +363,9 @@ class BOSS(Character):
     """
     ボスに関するクラス
     """
-    def __init__(self, hp: int, spawn_point: list[int, int], attack_target: Character):
+    ATTACK_INTERVAL_SEC = 1.0
+
+    def __init__(self, hp: int, spawn_point: list[int, int], attack_target: Character, enemy_bullet_group: pg.sprite.Group):
         """
         ボスを生成する関数
         引数3: 攻撃を加える対象
@@ -371,6 +373,8 @@ class BOSS(Character):
         super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, 0)
         self.speed = 100
         self.attack_target = attack_target
+        self.enemy_bullet_group = enemy_bullet_group
+        self._attack_interval_tmr = 0.0
 
     def update(self, delta_time: float):
         """
@@ -383,6 +387,12 @@ class BOSS(Character):
             return
         dir = list(calc_orientation(self.rect, self.attack_target.rect))
         self.rect.move_ip(dir[0] * self.speed * delta_time, dir[1] * self.speed * delta_time)
+
+        # 一定間隔で射撃を行う
+        if self._attack_interval_tmr > self.ATTACK_INTERVAL_SEC:
+            self.enemy_bullet_group.add(Flame(self, self.attack_target))
+            self._attack_interval_tmr = 0
+        self._attack_interval_tmr += delta_time
 
 
 class Flame(pg.sprite.Sprite):
@@ -490,7 +500,6 @@ def main():
     clk = 0
     enemy_spawn_interval_tmr = 0
     boss_spawn_interval_tmr = 0
-    boss_attack_interval_tmr = 0
 
     suvivetime = 0
 
@@ -546,18 +555,11 @@ def main():
                 50,
                 [camera.center_pos[0] + (spawn_dir[0] * 1000),
                      camera.center_pos[1] + (spawn_dir[1] * 1000)],
-                player)
+                player,
+                flame)
             )
             boss_spawn_interval_tmr = 0
         boss_spawn_interval_tmr += dtime
-
-        # 一定間隔ごとにボスが攻撃を放つ
-        for boss_attack in boss:
-            if boss_attack_interval_tmr > 1:
-                flame.add(Flame(boss_attack, player))
-        if boss_attack_interval_tmr > 1:
-            boss_attack_interval_tmr = 0
-        boss_attack_interval_tmr += dtime
 
         # 敵と銃弾の当たり判定処理
         for enemy in pg.sprite.groupcollide(enemies, bullets, False, True).keys():
