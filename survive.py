@@ -464,6 +464,7 @@ class Score:
         screen.blit(self.image, self.rect)
 
 def main():
+    max_fps = 60
     dtime = 0 # 前のフレームからどのくらい経ったか
     gameFlag = False
 
@@ -498,6 +499,15 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
+            if event.type == pg.KEYDOWN and event.key == pg.K_F1:
+                max_fps = 60
+                print(f"MAX FPS: {max_fps}")
+            if event.type == pg.KEYDOWN and event.key == pg.K_F2:
+                max_fps = 30
+                print(f"MAX FPS: {max_fps}")
+            if event.type == pg.KEYDOWN and event.key == pg.K_F3:
+                max_fps = 15
+                print(f"MAX FPS: {max_fps}")
 
         if score.score >= 500 and score.score < 1500:
             player.attack_interval = 0.1
@@ -665,7 +675,7 @@ def main():
         pg.display.update()
         suvivetime += dtime
         clk += dtime
-        dtime = clock.tick(50)/1000
+        dtime = clock.tick(max_fps)/1000
 
 
 if __name__ == "__main__":
