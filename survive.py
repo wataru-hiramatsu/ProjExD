@@ -275,7 +275,7 @@ class Bullet(pg.sprite.Sprite):
     # 銃弾が消えるまでの時間
     MAX_LIFE_TICK = 250
 
-    def __init__(self, position: tuple[int, int], direction: tuple[float, float]):
+    def __init__(self, position: tuple[int, int], direction: tuple[float, float], damage: int = 10):
         """
         銃弾Surfaceを生成する
         引数1: スポーン位置
@@ -294,8 +294,9 @@ class Bullet(pg.sprite.Sprite):
         self.rect.center = position
         self.speed = 20
         self.life_tmr = 0
+        self.damage = damage
 
-    def update(self,dtime):
+    def update(self, dtime: float, enemies: pg.sprite.Group, score: "Score"):
         """
         銃弾を移動させる
         """
@@ -305,6 +306,15 @@ class Bullet(pg.sprite.Sprite):
         if self.life_tmr > self.MAX_LIFE_TICK:
             self.kill()
         self.life_tmr += dtime
+
+        for enemy in pg.sprite.spritecollide(self, enemies, False):
+            self.kill()
+
+            enemy = cast(Enemy_Base, enemy)
+            enemy.give_damage(self.damage)
+            if enemy.hp <= 0:
+                score.score_up(enemy.get_score())
+
 
 def gen_beams(player: Player, targer_angle: float) -> list[Bullet]:
     """
@@ -571,13 +581,6 @@ def main():
             boss_spawn_interval_tmr = 0
         boss_spawn_interval_tmr += dtime
 
-        # 敵と銃弾の当たり判定処理
-        for enemy in pg.sprite.groupcollide(enemies, bullets, False, True).keys():
-            enemy = cast(Enemy_Base, enemy)
-            enemy.give_damage(10)
-            if enemy.hp <= 0:
-                score.score_up(enemy.get_score())
-
         # 銃弾とボスの攻撃の当たり判定処理
         pg.sprite.groupcollide(flame, bullets, True, True)
 
@@ -667,7 +670,7 @@ def main():
         
 
         # 銃弾の更新処理
-        bullets.update(dtime)
+        bullets.update(dtime, enemies, score)
         # 敵の更新処理
         enemies.update(dtime)
         # ボスの更新処理
