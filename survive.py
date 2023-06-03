@@ -314,7 +314,7 @@ class Bullet(pg.sprite.Sprite):
                 score.score_up(damage_target.get_score())
 
 
-def gen_beams(player: Player, targer_angle: float, attackable_group: pg.sprite.Group) -> list[Bullet]:
+def gen_beams(image: Surface, player: Player, targer_angle: float, attackable_group: pg.sprite.Group) -> list[Bullet]:
     """
     gen_beams関数で，
     ‐30°～+31°の角度の範囲で指定ビーム数の分だけBeamオブジェクトを生成し，
@@ -330,7 +330,7 @@ def gen_beams(player: Player, targer_angle: float, attackable_group: pg.sprite.G
 
     # print(angles)
 
-    neo_beams = [Bullet(player.rect.center, (math.cos(angles[i]), math.sin(angles[i])), attackable_group) for i in range(3)]
+    neo_beams = [Bullet(image, player.rect.center, (math.cos(angles[i]), math.sin(angles[i])), attackable_group) for i in range(3)]
     return neo_beams
 
 class Enemy_Base(Character):
@@ -627,14 +627,14 @@ def main():
             mouse_pos[1] -= screen.get_height() / 2
             # TODO: 処理の無駄が多いのでこの辺を書き直す
             image = pg.Surface((200, 200))
+            image = pg.Surface((20, 10))
+            pg.draw.rect(image, (255, 0, 0), image.get_rect())
             direction =  calc_orientation(player.rect.center, (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1]))
             if player.attack_number == 3:
-                bs = gen_beams(player,math.atan2(direction[1],direction[0]))
+                bs = gen_beams(image, player,math.atan2(direction[1],direction[0]), enemies)
                 for b in bs:
                     bullets.add(b)
             else:
-                image = pg.Surface((20, 10))
-                pg.draw.rect(image, (255, 0, 0), image.get_rect())
                 bullets.add(Bullet(image, player.rect.center, direction, enemies, speed=1000))
         
 
