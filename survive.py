@@ -8,12 +8,9 @@ import pygame as pg
 from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
-import pygame
-import numpy as np
-from pygame.locals import *
 
-pygame.init()
-pygame.mixer.init()
+pg.init()
+pg.mixer.init()
 
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
