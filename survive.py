@@ -84,7 +84,7 @@ class Character(pg.sprite.Sprite):
     """
     PlayerやEnemyなどの基底クラス
     """
-    def __init__(self, image: Surface, position: tuple[int, int], hp: int, max_invincible_tick=0) -> None:
+    def __init__(self, image: Surface, position: tuple[int, int], hp: int, max_invincible_sec=0) -> None:
         """
         キャラクタSurfaceを生成
         引数1: キャラの基本画像
@@ -94,7 +94,7 @@ class Character(pg.sprite.Sprite):
         """
         super().__init__()
         self.hp = hp
-        self.max_invincible_tick = max_invincible_tick
+        self.max_invincible_tick = max_invincible_sec
         self.invincible_tmr = -1
         self._imgs: dict[int, list[Surface, (int | None)]] = {}
         self.set_image(image, 0)
@@ -130,9 +130,9 @@ class Character(pg.sprite.Sprite):
         """
         pass
 
-    def update(self):
+    def update(self, delta_time: float):
         # 無敵時間を減らす処理
-        self.invincible_tmr = max(self.invincible_tmr - 1, -1)
+        self.invincible_tmr = max(self.invincible_tmr - delta_time, -1)
 
         # 表示する画像周りの処理
         if len(self._imgs) > 0:
@@ -144,7 +144,7 @@ class Character(pg.sprite.Sprite):
                 if self._imgs[idx][1] < 0:
                     del self._imgs[idx]
                     return
-                self._imgs[idx][1] -= 1
+                self._imgs[idx][1] -= delta_time
 
 
 def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
@@ -185,7 +185,7 @@ class Player(Character):
         pg.K_d: (+1, 0),
     }
 
-    def __init__(self, xy: list[int, int], hp=50, max_invincible_tick=50):
+    def __init__(self, xy: list[int, int], hp=50, max_invincible_sec=2):
         """
         Playerを生成
         引数1: スポーン位置
@@ -209,7 +209,7 @@ class Player(Character):
 
         
 
-        super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_tick)
+        super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_sec)
         self.speed = 10
 
         self.attack_interval = 0.2
@@ -236,14 +236,14 @@ class Player(Character):
         super().damaged()
 
         # 数秒間だけ専用画像に切り替える
-        self.change_img(8, 5, 20)
+        self.change_img(8, 5, 2)
 
     def update(self, key_lst: list[bool],dtime):
         """
         押下キーに応じてPlayerを移動させる
         引数1: key_lst：押下キーの真理値リスト
         """
-        super().update()
+        super().update(dtime)
         sum_mv = [0, 0]
         for k, mv in Player.delta.items():
             if key_lst[k]:
@@ -304,7 +304,7 @@ class Bullet(pg.sprite.Sprite):
         self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
         if self.life_tmr > self.MAX_LIFE_TICK:
             self.kill()
-        self.life_tmr += 1 * dtime
+        self.life_tmr += dtime
 
 def gen_beams(player: Player, targer_angle: float) -> list[Bullet]:
     """
@@ -346,11 +346,11 @@ class Enemy(Character):
         self.speed = 5
         self.attack_target = attack_target
 
-    def update(self,screen,dtime):
+    def update(self, dtime):
         """
         敵を移動させる関数
         """
-        super().update()
+        super().update(dtime)
         self.speed = 100 * dtime
         # 攻撃対象に近づき過ぎたら止まる（0割り対策）
         if calc_norm(self.rect, self.attack_target.rect) < 50:
@@ -369,27 +369,27 @@ class BOSS(Character):
         引数3: 攻撃を加える対象
         """
         super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, 0)
-        self.speed = 5
+        self.speed = 100
         self.attack_target = attack_target
 
-    def update(self):
+    def update(self, delta_time: float):
         """
         ボスを移動させる関数
         """
-        super().update()
+        super().update(delta_time)
 
         # 攻撃対象に近づき過ぎたら止まる（0割り対策）
         if calc_norm(self.rect, self.attack_target.rect) < 50:
             return
         dir = list(calc_orientation(self.rect, self.attack_target.rect))
-        self.rect.move_ip(dir[0] * self.speed, dir[1] * self.speed)
+        self.rect.move_ip(dir[0] * self.speed * delta_time, dir[1] * self.speed * delta_time)
 
 
 class Flame(pg.sprite.Sprite):
     """
     ボスが放つ攻撃に関するクラス
     """
-    MAX_LIFE_TICK_2 = 200
+    MAX_LIFE_TICK_2 = 4
     def __init__(self, boss_attack: "BOSS", player: Character):
         super().__init__()
         self.image = pg.transform.rotozoom((pg.image.load("ex05/fig/flame.png")), 0, 0.1)
@@ -398,18 +398,18 @@ class Flame(pg.sprite.Sprite):
         self.vx, self.vy = calc_orientation(boss_attack.rect, player.rect)  
         self.rect.centerx = boss_attack.rect.centerx
         self.rect.centery = boss_attack.rect.centery+boss_attack.rect.height/2
-        self.speed = 5
+        self.speed = 500
         self.life_tmr = 0
 
-    def update(self):
+    def update(self, delta_time: float):
         """
         攻撃を速度ベクトルself.vx, self.vyに基づき移動させる
         引数 screen：画面Surface
         """
-        self.rect.move_ip(+self.speed*self.vx, +self.speed*self.vy)
+        self.rect.move_ip(+self.speed*self.vx * delta_time, +self.speed*self.vy * delta_time)
         if self.life_tmr > self.MAX_LIFE_TICK_2:
             self.kill()
-        self.life_tmr += 1
+        self.life_tmr += delta_time
 
 
 class Background(pg.sprite.Sprite):
@@ -464,7 +464,7 @@ class Score:
         screen.blit(self.image, self.rect)
 
 def main():
-    dtime = 1 # 前のフレームからどのくらい経ったか
+    dtime = 0 # 前のフレームからどのくらい経ったか
     gameFlag = False
 
     pg.display.set_caption("サバイブ")
@@ -482,12 +482,14 @@ def main():
     enemies = Group_support_camera(camera)
     boss = Group_support_camera(camera)
     flame = Group_support_camera(camera)
-    tmr = 0
     clock = pg.time.Clock()
     
     score = Score(camera)
 
     clk = 0
+    enemy_spawn_interval_tmr = 0
+    boss_spawn_interval_tmr = 0
+    boss_attack_interval_tmr = 0
 
     suvivetime = 0
 
@@ -507,7 +509,7 @@ def main():
         sound_array.play()
 
         # 数秒おきに敵をスポーンさせる処理
-        if tmr % 3 == 0:
+        if enemy_spawn_interval_tmr > 0.5:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
             angle = random.randint(0, 360)
             spawn_dir = [
@@ -520,8 +522,10 @@ def main():
                      camera.center_pos[1] + (spawn_dir[1] * 1000)],
                 player)
             )
+            enemy_spawn_interval_tmr = 0
+        enemy_spawn_interval_tmr += dtime
 
-        if tmr % 150 == 0:
+        if boss_spawn_interval_tmr > 3:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
             angle = random.randint(0, 360)
             spawn_dir = [
@@ -534,10 +538,16 @@ def main():
                      camera.center_pos[1] + (spawn_dir[1] * 1000)],
                 player)
             )
+            boss_spawn_interval_tmr = 0
+        boss_spawn_interval_tmr += dtime
+
         # 一定間隔ごとにボスが攻撃を放つ
         for boss_attack in boss:
-            if (tmr%50) == 0:
+            if boss_attack_interval_tmr > 1:
                 flame.add(Flame(boss_attack, player))
+        if boss_attack_interval_tmr > 1:
+            boss_attack_interval_tmr = 0
+        boss_attack_interval_tmr += dtime
 
         # 敵と銃弾の当たり判定処理
         for enemy in pg.sprite.groupcollide(enemies, bullets, False, True).keys():
@@ -636,11 +646,11 @@ def main():
         # 銃弾の更新処理
         bullets.update(dtime)
         # 敵の更新処理
-        enemies.update(screen,dtime)
+        enemies.update(dtime)
         # ボスの更新処理
-        boss.update()
+        boss.update(dtime)
         # ボスの攻撃の更新処理
-        flame.update()
+        flame.update(dtime)
 
         # other 
         # pygame.display.flip()
@@ -655,8 +665,6 @@ def main():
         pg.display.update()
         suvivetime += dtime
         clk += dtime
-        # タイマー
-        tmr += 1
         dtime = clock.tick(50)/1000
 
 
