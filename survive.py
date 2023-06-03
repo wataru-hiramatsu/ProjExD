@@ -301,20 +301,27 @@ class Bullet(pg.sprite.Sprite):
                 score.score_up(damage_target.get_score())
 
 
-def gen_beams(image: Surface, player: Player, target_rad: float, attackable_group: pg.sprite.Group) -> list[Bullet]:
+def gen_beams(image: Surface,
+              player: Player, 
+              target_angle: float, 
+              attackable_group: pg.sprite.Group, 
+              speed=500,
+              damage=10,
+              life_sec=5,
+              bullet_count=1, 
+              angle_range=30) -> list[Bullet]:
     """
     gen_beams関数で，
     ‐30°～+31°の角度の範囲で指定ビーム数の分だけBeamオブジェクトを生成し，
     リストにappendする → リストを返す
     """
-    count = 3
-    interval_rad = math.radians(30) / (count - 1) if count != 0 else 0
-    rad_range = interval_rad * (count - 1) if count != 0 else 0
+    interval_rad = math.radians(angle_range) / (bullet_count - 1) if bullet_count != 1 else 0
+    rad_range = interval_rad * (bullet_count - 1) if bullet_count != 0 else 0
 
     bullets: list[Bullet] = []
-    for i in range(count):
-        rad = i * interval_rad - rad_range / 2 + target_rad
-        bullets.append(Bullet(image, player.rect.center, (math.cos(rad), math.sin(rad)), attackable_group))
+    for i in range(bullet_count):
+        rad = i * interval_rad - rad_range / 2 + math.radians(target_angle)
+        bullets.append(Bullet(image, player.rect.center, (math.cos(rad), math.sin(rad)), attackable_group, speed, damage, life_sec))
     return bullets
 
 class Enemy_Base(Character):
@@ -499,10 +506,10 @@ def main():
         # 数秒おきに敵をスポーンさせる処理
         if enemy_spawn_interval_tmr > 0.5:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
-            angle = random.randint(0, 360)
+            angle_rad = random.randint(0, 360)
             spawn_dir = [
-                math.cos(math.radians(angle)),
-                -math.sin(math.radians(angle))
+                math.cos(math.radians(angle_rad)),
+                -math.sin(math.radians(angle_rad))
             ]
             enemies.add(Enemy(
                 [
@@ -516,10 +523,10 @@ def main():
 
         if boss_spawn_interval_tmr > 3:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
-            angle = random.randint(0, 360)
+            angle_rad = random.randint(0, 360)
             spawn_dir = [
-                math.cos(math.radians(angle)),
-                -math.sin(math.radians(angle))
+                math.cos(math.radians(angle_rad)),
+                -math.sin(math.radians(angle_rad))
             ]
             boss.add(BOSS(
                 [
@@ -604,16 +611,13 @@ def main():
             mouse_pos[0] -= screen.get_width() / 2
             mouse_pos[1] -= screen.get_height() / 2
             direction =  calc_orientation(player.rect.center, (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1]))
+            angle = math.degrees(math.atan2(direction[1], direction[0]))
 
             bullet_img = pg.Surface((20, 10))
             pg.draw.rect(bullet_img, (255, 0, 0), bullet_img.get_rect())
-            if player.attack_number == 3:
-                bs = gen_beams(bullet_img, player,math.atan2(direction[1],direction[0]), enemies)
-                for b in bs:
-                    bullets.add(b)
-            else:
-                bullets.add(Bullet(bullet_img, player.rect.center, direction, enemies, speed=1000))
-        
+            bs = gen_beams(bullet_img, player, angle, enemies, bullet_count=player.attack_number, speed=1000)
+            for b in bs:
+                bullets.add(b)
 
         # 敵の更新処理
         enemies.update(dtime)
