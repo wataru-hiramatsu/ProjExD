@@ -80,6 +80,7 @@ class Character(pg.sprite.Sprite):
         引数4: ダメージを受けた際に無敵になるフレーム数（任意）
         """
         super().__init__()
+        self.max_hp = hp
         self.hp = hp
         self.max_invincible_tick = max_invincible_sec
         self.invincible_tmr = -1
@@ -191,7 +192,7 @@ class Player(Character):
         pg.K_d: (+1, 0),
     }
 
-    def __init__(self, xy: list[int, int], hp=50, max_invincible_sec=2):
+    def __init__(self, xy: list[int, int], effect_group: pg.sprite.Group, hp=50, max_invincible_sec=2):
         """
         Playerを生成
         引数1: スポーン位置
@@ -216,6 +217,7 @@ class Player(Character):
         self.speed = 500
         self.attack_interval = 0.2
         self.attack_number = 1
+        effect_group.add(HP_Bar(self))
 
     def change_img(self, num: int, priority: int, life: int | None = None):
         """
@@ -333,9 +335,17 @@ def gen_beams(image: Surface,
     return bullets
 
 class Enemy_Base(Character):
-    def __init__(self, image: Surface, position: tuple[int, int], hp: int, max_invincible_sec=0, score=0) -> None:
+    def __init__(self,
+                 image: Surface,
+                 position: tuple[int, int],
+                 hp: int,
+                 effect_group: pg.sprite.Group,
+                 max_invincible_sec=0,
+                 score=0) -> None:
         super().__init__(image, position, hp, max_invincible_sec)
+        self.effect_group = effect_group
         self._score = score
+        self.effect_group.add(HP_Bar(self))
     
     def get_score(self) -> int:
         return self._score
@@ -345,7 +355,9 @@ class Enemy(Enemy_Base):
     """
     敵に関するクラス
     """
-    def __init__(self, spawn_point: list[int, int], attack_target: Character, hp=20, score=30):
+    # TODO: グループ周りの引数が多すぎるのでなんとかしたい
+    # （この規模ならGameManagerクラスを作って、グループ達をそのクラス変数として持たせてどこからもアクセス出来るようにしてもいいかも）
+    def __init__(self, spawn_point: list[int, int], attack_target: Character, effect_group:pg.sprite.Group, hp=20, score=30):
         """
         敵を生成する関数
         引数3: 攻撃を加える対象
@@ -354,7 +366,7 @@ class Enemy(Enemy_Base):
         imgs[0] = pg.transform.scale(imgs[0],(random.randint(90,150),random.randint(90,150)))
         imgs[1] = pg.transform.scale(imgs[1],(random.randint(90,150),random.randint(90,150)))
         imgs[2] = pg.transform.scale(imgs[2],(random.randint(90,150),random.randint(90,150)))
-        super().__init__(random.choice(imgs), spawn_point, hp, score=score)
+        super().__init__(random.choice(imgs), spawn_point, hp, effect_group, score=score)
         self.speed = 100
         self.attack_target = attack_target
 
@@ -376,12 +388,12 @@ class BOSS(Enemy_Base):
     """
     ATTACK_INTERVAL_SEC = 1.0
 
-    def __init__(self, spawn_point: list[int, int], attack_target: Character, enemy_bullet_group: pg.sprite.Group, hp=50, score=40):
+    def __init__(self, spawn_point: list[int, int], attack_target: Character, effect_group:pg.sprite.Group, enemy_bullet_group: pg.sprite.Group, hp=50, score=40):
         """
         ボスを生成する関数
         引数3: 攻撃を加える対象
         """
-        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, score=score)
+        super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, effect_group, score=score)
         self.speed = 100
         self.attack_target = attack_target
         self.enemy_bullet_group = enemy_bullet_group
@@ -439,6 +451,36 @@ class Background(pg.sprite.Sprite):
         self.rect.topleft = (x_offset * self.rect.width,
                              y_offset * self.rect.height)
 
+
+class HP_Bar(pg.sprite.Sprite):
+    _BAR_COLOR = (255, 0, 0)
+    _BAR_BACKGROUND_COLOR = (0, 0, 0)
+
+    def update_image(self) -> pg.Surface:
+        percent = self.target_character.hp / self.target_character.max_hp
+        self.image.fill(self._BAR_BACKGROUND_COLOR)
+        pg.draw.rect(self.image, self._BAR_COLOR, pg.Rect(0, 0, self.image.get_width() * percent, self.image.get_height()))
+
+    def __init__(self, target_character: Character, width: int=100, height: int=10, offset_y:int=10) -> None:
+        super().__init__()
+        self.target_character = target_character
+        self.image = pg.Surface((width, height))
+        self.update_image()
+        self.rect = self.image.get_rect()
+        self.offset_y = offset_y
+
+        self.rect.midbottom = self.target_character.rect.midtop
+        self.rect.y -= offset_y
+    
+    def update(self, delta_time: float) -> None:
+        self.rect.midbottom = self.target_character.rect.midtop
+        self.rect.y -= self.offset_y
+        self.update_image()
+
+        if self.target_character.hp <= 0:
+            self.kill()
+
+
 class Score:
     """
     倒した敵の数をスコアとして表示するクラス
@@ -473,7 +515,8 @@ def main():
     for i in range(-2, 3):
         for j in range(-1, 2):
             background.add(Background(camera, (i, j)))
-    player = Player([0, 0])
+    effect_group = Group_support_camera(camera)
+    player = Player([0, 0], effect_group)
     player_group = Group_support_camera(camera, player)
     bullets = Group_support_camera(camera)
     enemies = Group_support_camera(camera)
@@ -522,7 +565,8 @@ def main():
                     camera.center_pos[0] + (spawn_dir[0] * 1000),
                     camera.center_pos[1] + (spawn_dir[1] * 1000)
                 ],
-                player)
+                player,
+                effect_group)
             )
             enemy_spawn_interval_tmr = 0
         enemy_spawn_interval_tmr += dtime
@@ -540,6 +584,7 @@ def main():
                     camera.center_pos[1] + (spawn_dir[1] * 1000)
                 ],
                 player,
+                effect_group,
                 flame)
             )
             boss_spawn_interval_tmr = 0
@@ -634,6 +679,8 @@ def main():
         bullets.update(dtime, score)
         # ボスの攻撃の更新処理
         flame.update(dtime, score)
+        # エフェクトの更新処理
+        effect_group.update(dtime)
 
         # 描画周りの処理
         player_group.draw(screen)
@@ -642,6 +689,7 @@ def main():
         boss.draw(screen)
         flame.draw(screen)
         score.update(screen)
+        effect_group.draw(screen)
         pg.display.update()
 
         suvivetime += dtime
