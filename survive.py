@@ -520,7 +520,6 @@ def main():
     player_group = Group_support_camera(camera, player)
     bullets = Group_support_camera(camera)
     enemies = Group_support_camera(camera)
-    boss = Group_support_camera(camera)
     flame = Group_support_camera(camera)
     clock = pg.time.Clock()
     score = Score(camera)
@@ -578,7 +577,7 @@ def main():
                 math.cos(math.radians(angle_rad)),
                 -math.sin(math.radians(angle_rad))
             ]
-            boss.add(BOSS(
+            enemies.add(BOSS(
                 [
                     camera.center_pos[0] + (spawn_dir[0] * 1000),
                     camera.center_pos[1] + (spawn_dir[1] * 1000)
@@ -597,12 +596,6 @@ def main():
         # 敵とプレイヤーの当たり判定処理
         for _ in pg.sprite.spritecollide(player, enemies, False):
             player.give_damage(10)
-
-        # ボスと銃弾の当たり判定処理
-        for b in pg.sprite.groupcollide(boss, bullets, False, True):
-            b.give_damage(10)
-            if b.hp <= 0:
-                score.score_up(40)
 
         # 背景の更新＆描画処理
         background.update()
@@ -673,8 +666,6 @@ def main():
 
         # 敵の更新処理
         enemies.update(dtime)
-        # ボスの更新処理
-        boss.update(dtime)
         # 銃弾の更新処理
         bullets.update(dtime, score)
         # ボスの攻撃の更新処理
@@ -686,7 +677,6 @@ def main():
         player_group.draw(screen)
         bullets.draw(screen)
         enemies.draw(screen)
-        boss.draw(screen)
         flame.draw(screen)
         score.update(screen)
         effect_group.draw(screen)
