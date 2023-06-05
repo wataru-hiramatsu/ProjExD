@@ -245,7 +245,7 @@ class Player(Character):
         self.dire = (1, 0)
         super().__init__(self.move_imgs[self.dire], xy ,hp, max_invincible_sec)
         self.speed = 500
-        self.attack_interval = 0.2
+        self.attack_interval = 1
         self.attack_number = 1
         effect_group.add(HP_Bar(self))
 
@@ -433,16 +433,16 @@ class BOSS(Enemy_Base):
     """
     ボスに関するクラス
     """
-    ATTACK_INTERVAL_SEC = 1.0
+    ATTACK_INTERVAL_SEC = 0.3
 
     def __init__(self,
                  spawn_point: list[int, int],
                  attack_target: Character,
                  effect_group:pg.sprite.Group,
                  enemy_bullet_group: pg.sprite.Group,
-                 hp=50,
+                 hp=100,
                  score=40,
-                 speed=100):
+                 speed=200):
         """
         ボスを生成する関数
         引数3: 攻撃を加える対象
@@ -461,7 +461,7 @@ class BOSS(Enemy_Base):
         super().update(delta_time)
 
         # 攻撃対象に近づき過ぎたら止まる（0割り対策）
-        if calc_norm(self.rect, self.attack_target.rect) < 50:
+        if calc_norm(self.rect, self.attack_target.rect) < 500:
             return
         dir = list(calc_orientation(self.rect, self.attack_target.rect))
         self.rect.move_ip(dir[0] * self.speed * delta_time, dir[1] * self.speed * delta_time)
@@ -469,7 +469,7 @@ class BOSS(Enemy_Base):
         # 一定間隔で射撃を行う
         if self._attack_interval_tmr > self.ATTACK_INTERVAL_SEC:
             direction = calc_orientation(self.rect.midbottom, self.attack_target.rect.center)  
-            self.enemy_bullet_group.add(Bullet(self.bullet_img, self.rect.midbottom, direction, self.attack_target.groups()[0], is_fix_rotation_img=True))
+            self.enemy_bullet_group.add(Bullet(self.bullet_img, self.rect.midbottom, direction, self.attack_target.groups()[0], is_fix_rotation_img=True, life_sec=10))
             self._attack_interval_tmr = 0
         self._attack_interval_tmr += delta_time
 
@@ -556,7 +556,7 @@ class Score:
         screen.blit(self.image, self.rect)
 
 def get_random_spawn_pos(range: int=-1) -> tuple[int, int]:
-    range = Camera.active_camera.screen.get_width() // 2 + 500 if range < 0 else range
+    range = Camera.active_camera.screen.get_width() // 2 + 200 if range < 0 else range
     spawn_rad = math.radians(random.randint(0, 360))
     spawn_dir = [math.cos(spawn_rad), -math.sin(spawn_rad)]
     center_pos = Camera.active_camera.center_pos
@@ -649,6 +649,36 @@ def main():
             return
         suvive_time_tmr += dtime
 
+        # スコアに応じてプレイヤーの攻撃を強化する
+        if score.score < 90:
+            player.attack_interval = 1
+        elif score.score < 500:
+            player.attack_interval = 0.5
+        elif score.score < 1000:
+            player.attack_interval = 0.3
+        elif score.score < 3000:
+            player.attack_interval = 0.1
+        else:
+            player.attack_number = 3
+
+        # 生き残っている時間に応じて敵のスポーン間隔を変える処理
+        if suvive_time_tmr < 10:
+            enemy_spawn_interval_sec = 0.5
+            fast_enemy_spawn_interval_sec = 10000
+            boss_spawn_interval_sec = 10000
+        elif suvive_time_tmr < 30:
+            enemy_spawn_interval_sec = 1
+            fast_enemy_spawn_interval_sec = 1
+            boss_spawn_interval_sec = 10000
+        elif suvive_time_tmr < 45:
+            enemy_spawn_interval_sec = 10000
+            fast_enemy_spawn_interval_sec = 0.5
+            boss_spawn_interval_sec = 10
+        elif suvive_time_tmr < 60:
+            enemy_spawn_interval_sec = 10000
+            fast_enemy_spawn_interval_sec = 0.1
+            boss_spawn_interval_sec = 3
+
         # 数秒おきに敵をスポーンさせる処理
         if enemy_spawn_interval_tmr > enemy_spawn_interval_sec:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
@@ -672,12 +702,6 @@ def main():
         
         # プレイヤー更新処理
         player.update(key_lst,dtime)
-        # スコアに応じてプレイヤーの攻撃を強化する
-        if score.score >= 500 and score.score < 1500:
-            player.attack_interval = 0.1
-        elif score.score >= 1500:
-            player.attack_interval = 0.1
-            player.attack_number = 3
         # 数秒おきにマウス方向に銃弾を飛ばす
         if player_shoot_interval_tmr > player.attack_interval:
             player_shoot_interval_tmr = 0
