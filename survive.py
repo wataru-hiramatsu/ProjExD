@@ -15,6 +15,9 @@ pg.mixer.init()
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
 
+def clamp(v, small, large):
+    return max(small, min(v, large))
+
 class Camera():
     """
     カメラに関するクラス
@@ -39,7 +42,9 @@ class Camera():
         カメラの位置を更新する関数
         引数1: 前のフレームからの経過時間
         """
-        self.center_pos = self.targetCharacter.rect.center
+        self.center_pos = list(self.targetCharacter.rect.center)
+        self.center_pos[0] = clamp(self.center_pos[0], -MoveArea.width / 2 + self.screen.get_width() / 2, MoveArea.width / 2 - self.screen.get_width() / 2)
+        self.center_pos[1] = clamp(self.center_pos[1], -MoveArea.height / 2 + self.screen.get_height() / 2, MoveArea.height / 2 - self.screen.get_height() / 2)
 
 
 class Group_support_camera(pg.sprite.Group):
@@ -74,9 +79,16 @@ class Group_support_camera(pg.sprite.Group):
 
         return rst
     
-class Area():
-    width: int = 2000
-    height: int = 2000
+class MoveArea():
+    width: int = 4000
+    height: int = 3000
+    
+    @classmethod
+    def is_in_area(cls, pos: tuple[int, int]) -> tuple[bool, bool]:
+        return (
+            -cls.width / 2 <= pos[0] <= cls.width / 2,
+            -cls.height / 2 <= pos[1] <= cls.height / 2
+        )
 
 
 class Character(pg.sprite.Sprite):
@@ -258,7 +270,12 @@ class Player(Character):
         sum_mv = [0, 0]
         for k, mv in Player.delta.items():
             if key_lst[k]:
-                self.rect.move_ip(self.speed * mv[0] * dtime, self.speed * mv[1] * dtime)
+                move_vec = [self.speed * mv[0] * dtime, self.speed * mv[1] * dtime]
+                movable = MoveArea.is_in_area((self.rect.center[0] + move_vec[0], self.rect.center[1] + move_vec[1]))
+                if movable[0]:
+                    self.rect.move_ip(move_vec[0], 0)
+                if movable[1]:
+                    self.rect.move_ip(0, move_vec[1])
                 sum_mv[0] += mv[0]
                 sum_mv[1] += mv[1]
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
