@@ -222,7 +222,7 @@ class Player(Character):
         pg.K_d: (+1, 0),
     }
 
-    def __init__(self, xy: list[int, int], effect_group: pg.sprite.Group, hp=50, max_invincible_sec=2):
+    def __init__(self, xy: list[int, int], effect_group: pg.sprite.Group, hp=50, max_invincible_sec=0.5):
         """
         Playerを生成
         引数1: スポーン位置
