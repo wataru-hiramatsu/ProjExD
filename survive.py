@@ -656,7 +656,7 @@ def main():
             player.attack_interval = 0.5
         elif score.score < 1000:
             player.attack_interval = 0.3
-        elif score.score < 3000:
+        elif score.score < 4000:
             player.attack_interval = 0.1
         else:
             player.attack_number = 3
