@@ -593,6 +593,7 @@ def main():
     boss_spawn_interval_sec = 3
     boss_spawn_interval_tmr = 0
     suvive_time_tmr = 0
+    score_thresholds = [90, 500, 1000, 4000]
 
     SURVIVE_TIME_SEC = 60
 
@@ -650,13 +651,13 @@ def main():
         suvive_time_tmr += dtime
 
         # スコアに応じてプレイヤーの攻撃を強化する
-        if score.score < 90:
+        if score.score < score_thresholds[0]:
             player.attack_interval = 1
-        elif score.score < 500:
+        elif score.score < score_thresholds[1]:
             player.attack_interval = 0.5
-        elif score.score < 1000:
+        elif score.score < score_thresholds[2]:
             player.attack_interval = 0.3
-        elif score.score < 4000:
+        elif score.score < score_thresholds[3]:
             player.attack_interval = 0.1
         else:
             player.attack_number = 3
@@ -741,10 +742,23 @@ def main():
         player_group.draw(screen)
         # UI
         score.update(screen)
-        font = pg.font.Font(None, 250)
+
+        # 次の攻撃強化までのゲージ
+        next_score = score_thresholds[-1]
+        prev_score = 0
+        for i in range(len(score_thresholds)):
+            if score.score < score_thresholds[i]:
+                next_score = score_thresholds[i]
+                prev_score = score_thresholds[i - 1] if i > 0 else 0
+                break
+        percent = (score.score - prev_score) / (next_score - prev_score)
+        pg.draw.rect(screen, (0, 0, 0), pg.Rect(0, 0, camera.screen.get_width(), 20))
+        pg.draw.rect(screen, (255, 255, 0), pg.Rect(0, 5, camera.screen.get_width() * percent, 10))
+
+        font = pg.font.Font(None, 128)
         bullet_img = font.render(f"{int(SURVIVE_TIME_SEC - suvive_time_tmr)}", 0, (0, 255, 0))
         img_rct = bullet_img.get_rect()
-        img_rct.center = (WIDTH / 2, 100)
+        img_rct.midtop = (WIDTH / 2, 20)
         screen.blit(bullet_img, img_rct)
         pg.display.update()
 
