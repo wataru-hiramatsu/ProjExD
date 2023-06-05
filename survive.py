@@ -548,6 +548,13 @@ class Score:
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+def get_random_spawn_pos(range: int=-1) -> tuple[int, int]:
+    range = Camera.active_camera.screen.get_width() // 2 + 500 if range < 0 else range
+    spawn_rad = math.radians(random.randint(0, 360))
+    spawn_dir = [math.cos(spawn_rad), -math.sin(spawn_rad)]
+    center_pos = Camera.active_camera.center_pos
+    return [center_pos[0] + (spawn_dir[0] * range), center_pos[1] + (spawn_dir[1] * range)]
+
 def main():
     max_fps = 60
     dtime = 0 # 前のフレームからどのくらい経ったか
@@ -601,34 +608,14 @@ def main():
         # 数秒おきに敵をスポーンさせる処理
         if enemy_spawn_interval_tmr > 0.5:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
-            angle_rad = random.randint(0, 360)
-            spawn_dir = [
-                math.cos(math.radians(angle_rad)),
-                -math.sin(math.radians(angle_rad))
-            ]
-            enemies.add(Enemy(
-                [
-                    camera.center_pos[0] + (spawn_dir[0] * 1000),
-                    camera.center_pos[1] + (spawn_dir[1] * 1000)
-                ],
-                player,
-                effect_group)
-            )
+            enemies.add(Enemy(get_random_spawn_pos(), player, effect_group))
             enemy_spawn_interval_tmr = 0
         enemy_spawn_interval_tmr += dtime
 
         if boss_spawn_interval_tmr > 3:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
-            angle_rad = random.randint(0, 360)
-            spawn_dir = [
-                math.cos(math.radians(angle_rad)),
-                -math.sin(math.radians(angle_rad))
-            ]
             enemies.add(BOSS(
-                [
-                    camera.center_pos[0] + (spawn_dir[0] * 1000),
-                    camera.center_pos[1] + (spawn_dir[1] * 1000)
-                ],
+                get_random_spawn_pos(),
                 player,
                 effect_group,
                 flame)
