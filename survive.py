@@ -46,6 +46,12 @@ class Camera():
         self.center_pos[0] = clamp(self.center_pos[0], -MoveArea.width / 2 + self.screen.get_width() / 2, MoveArea.width / 2 - self.screen.get_width() / 2)
         self.center_pos[1] = clamp(self.center_pos[1], -MoveArea.height / 2 + self.screen.get_height() / 2, MoveArea.height / 2 - self.screen.get_height() / 2)
 
+    def is_in_camera(self, pos: tuple[int, int]) -> tuple[bool, bool]:
+        return (
+            self.center_pos[0] - self.screen.get_width() / 2 <= pos[0] <= self.center_pos[0] + self.screen.get_width() / 2,
+            self.center_pos[1] - self.screen.get_height() / 2 <= pos[1] <= self.center_pos[1] + self.screen.get_height() / 2
+        )
+
 
 class Group_support_camera(pg.sprite.Group):
     """
@@ -298,7 +304,16 @@ class Bullet(pg.sprite.Sprite):
     弾に関するクラス
     """
 
-    def __init__(self, image: Surface, position: tuple[int, int], direction: tuple[float, float], attackable_group: pg.sprite.Group, speed=500, damage: int=10, life_sec=5, is_fix_rotation_img=False):
+    def __init__(self,
+                 image: Surface,
+                 position: tuple[int, int],
+                 direction: tuple[float, float],
+                 attackable_group: pg.sprite.Group,
+                 speed=500,
+                 damage: int=10,
+                 life_sec=5,
+                 is_fix_rotation_img=False,
+                 is_destoroy_when_off_screen=False):
         """
         銃弾Surfaceを生成する
         引数1: スポーン位置
@@ -318,6 +333,7 @@ class Bullet(pg.sprite.Sprite):
         self.attackable_group = attackable_group
         self.damage = damage
         self.max_life_sec = life_sec
+        self.isdestoroy_when_off_screen = is_destoroy_when_off_screen
 
     def update(self, dtime: float, score: "Score"):
         """
@@ -325,7 +341,9 @@ class Bullet(pg.sprite.Sprite):
         """
         # 移動
         self.rect.move_ip(self.speed * self.vx * dtime, self.speed * self.vy * dtime)
-        if self.life_tmr > self.max_life_sec:
+        in_camera = Camera.active_camera.is_in_camera(self.rect.center)
+        is_in_camera = in_camera[0] and in_camera[1]
+        if self.life_tmr > self.max_life_sec or (self.isdestoroy_when_off_screen and not is_in_camera):
             self.kill()
         self.life_tmr += dtime
 
@@ -360,7 +378,7 @@ def gen_beams(image: Surface,
     bullets: list[Bullet] = []
     for i in range(bullet_count):
         rad = i * interval_rad - rad_range / 2 + math.radians(target_angle)
-        bullets.append(Bullet(image, player.rect.center, (math.cos(rad), math.sin(rad)), attackable_group, speed, damage, life_sec))
+        bullets.append(Bullet(image, player.rect.center, (math.cos(rad), math.sin(rad)), attackable_group, speed, damage, life_sec, is_destoroy_when_off_screen=True))
     return bullets
 
 class Enemy_Base(Character):
