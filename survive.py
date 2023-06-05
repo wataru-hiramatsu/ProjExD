@@ -594,6 +594,7 @@ def main():
     boss_spawn_interval_tmr = 0
     suvive_time_tmr = 0
     score_thresholds = [90, 500, 1000, 4000]
+    next_score = score_thresholds[0]
 
     SURVIVE_TIME_SEC = 60
 
@@ -744,16 +745,21 @@ def main():
         score.update(screen)
 
         # 次の攻撃強化までのゲージ
-        next_score = score_thresholds[-1]
+        next_score_tmp = next_score
         prev_score = 0
         for i in range(len(score_thresholds)):
             if score.score < score_thresholds[i]:
                 next_score = score_thresholds[i]
                 prev_score = score_thresholds[i - 1] if i > 0 else 0
                 break
-        percent = (score.score - prev_score) / (next_score - prev_score)
-        pg.draw.rect(screen, (0, 0, 0), pg.Rect(0, 0, camera.screen.get_width(), 20))
-        pg.draw.rect(screen, (255, 255, 0), pg.Rect(0, 5, camera.screen.get_width() * percent, 10))
+        else:
+            next_score = -1
+        if next_score != -1:
+            percent = (score.score - prev_score) / (next_score - prev_score)
+            pg.draw.rect(screen, (0, 0, 0), pg.Rect(0, 0, camera.screen.get_width(), 20))
+            pg.draw.rect(screen, (255, 255, 0), pg.Rect(0, 5, camera.screen.get_width() * percent, 10))
+        if next_score != next_score_tmp:
+            pg.mixer.Sound("ex05/fig/se_powerup.mp3").play()
 
         font = pg.font.Font(None, 128)
         bullet_img = font.render(f"{int(SURVIVE_TIME_SEC - suvive_time_tmr)}", 0, (0, 255, 0))
