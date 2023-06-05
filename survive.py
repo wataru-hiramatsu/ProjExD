@@ -22,36 +22,44 @@ class Camera():
 
     active_camera: "Camera" = None
 
-    def __init__(self, screen: Surface, center_pos: list[float] = [0, 0], is_acrive_now=True) -> None:
+    def __init__(self, screen: Surface, targetCharacter: "Character", is_acrive_now=True) -> None:
         """
         カメラを生成する関数
         引数1: 描画先のSurface
         引数2: カメラのスポーン位置（カメラ中心位置が原点）
         """
         self.screen = screen
-        self.center_pos = center_pos
+        self.center_pos = [0, 0]
+        self.targetCharacter = targetCharacter
         if is_acrive_now:
             self.__class__.active_camera = self
+    
+    def update(self, delta_time: float) -> None:
+        """
+        カメラの位置を更新する関数
+        引数1: 前のフレームからの経過時間
+        """
+        self.center_pos = self.targetCharacter.rect.center
 
 
 class Group_support_camera(pg.sprite.Group):
     """
     Surfaceをカメラ位置に同期して描画するためのグループクラス
     """
-    def __init__(self, camera: Camera, *sprites: Sprite | Sequence[Sprite]) -> None:
+    def __init__(self, *sprites: Sprite | Sequence[Sprite]) -> None:
         super().__init__(*sprites)
-        self.camera = camera
 
     def draw(self, surface: Surface) -> List[Rect]:
         """
         グループ内にあるSpriteをカメラ位置に合わせて描画する関数
         引数1: 描画先のSurface
         """
+        camera = Camera.active_camera
         # カメラ位置だけSprite達をずらす
         for sprite in self.sprites():
             sprite.rect.move_ip(
-                -self.camera.center_pos[0] + self.camera.screen.get_width() / 2,
-                -self.camera.center_pos[1] + self.camera.screen.get_height() / 2
+                -camera.center_pos[0] + camera.screen.get_width() / 2,
+                -camera.center_pos[1] + camera.screen.get_height() / 2
             )
 
         # 描画
@@ -60,11 +68,15 @@ class Group_support_camera(pg.sprite.Group):
         # 動かしたSprite達の位置を戻す
         for sprite in self.sprites():
             sprite.rect.move_ip(
-                self.camera.center_pos[0] - self.camera.screen.get_width() / 2,
-                self.camera.center_pos[1] - self.camera.screen.get_height() / 2
+                camera.center_pos[0] - camera.screen.get_width() / 2,
+                camera.center_pos[1] - camera.screen.get_height() / 2
             )
 
         return rst
+    
+class Area():
+    width: int = 2000
+    height: int = 2000
 
 
 class Character(pg.sprite.Sprite):
@@ -510,17 +522,17 @@ def main():
     screen = pg.display.set_mode((1600, 900))
 
     # 様々な変数の初期化
-    camera = Camera(screen, [0, 0])
-    background = Group_support_camera(camera)
+    effect_group = Group_support_camera()
+    player = Player([0, 0], effect_group)
+    camera = Camera(screen, player)
+    background = Group_support_camera()
     for i in range(-2, 3):
         for j in range(-1, 2):
             background.add(Background(camera, (i, j)))
-    effect_group = Group_support_camera(camera)
-    player = Player([0, 0], effect_group)
-    player_group = Group_support_camera(camera, player)
-    bullets = Group_support_camera(camera)
-    enemies = Group_support_camera(camera)
-    flame = Group_support_camera(camera)
+    player_group = Group_support_camera(player)
+    bullets = Group_support_camera()
+    enemies = Group_support_camera()
+    flame = Group_support_camera()
     clock = pg.time.Clock()
     score = Score(camera)
 
@@ -644,9 +656,7 @@ def main():
         
         # プレイヤー更新処理
         player.update(key_lst,dtime)
-        # カメラをプレイヤーに追従させる処理
-        camera.center_pos[0] = player.rect.centerx
-        camera.center_pos[1] = player.rect.centery
+        camera.update(dtime)
 
         # 数秒おきにマウス方向に銃弾を飛ばす
         if clk > player.attack_interval:
