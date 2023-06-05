@@ -535,7 +535,7 @@ class Score:
     """
     def __init__(self,camera:Camera):
         self.font = pg.font.Font(None, 50)
-        self.color = (0, 0, 255)
+        self.color = (255, 255, 255)
         self.score = 0
         self.image = self.font.render(f"Score: {self.score}", 0, self.color)
         self.rect = self.image.get_rect()
