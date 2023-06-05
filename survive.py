@@ -585,14 +585,16 @@ def main():
     clock = pg.time.Clock()
     score = Score(camera)
 
-    clk = 0
+    player_shoot_interval_tmr = 0
     enemy_spawn_interval_sec = 0.5
     enemy_spawn_interval_tmr = 0
     fast_enemy_spawn_interval_sec = 3
     fast_enemy_spawn_interval_tmr = 0
     boss_spawn_interval_sec = 3
     boss_spawn_interval_tmr = 0
-    suvivetime = 0
+    suvive_time_tmr = 0
+
+    SURVIVE_TIME_SEC = 60
 
     while True:
         key_lst = pg.key.get_pressed()
@@ -609,12 +611,43 @@ def main():
                 max_fps = 15
                 print(f"MAX FPS: {max_fps}")
 
-        if score.score >= 500 and score.score < 1500:
-            player.attack_interval = 0.1
+        # ゲームオーバー処理
+        if player.hp <= 0:
+            background.update()
+            background.draw(screen)
+            font = pg.font.Font(None, 250)
+            bullet_img = font.render(f"Game Over", 0, (255,0,0))
+            img_rct = bullet_img.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT/2)
+            screen.blit(bullet_img, img_rct)
 
-        elif score.score >= 1500:
-            player.attack_interval = 0.1
-            player.attack_number = 3
+            player.change_img(8, 10, 250)
+            player.update(key_lst,dtime)
+            player_group.draw(screen)
+            pg.display.update()
+            time.sleep(2)
+            return
+        
+        # ゲームクリアの処理
+        if suvive_time_tmr >= SURVIVE_TIME_SEC:
+            gameFlag = True
+        if gameFlag:
+            background.update()
+            background.draw(screen)
+            # game clear
+            font = pg.font.Font(None, 250)
+            bullet_img = font.render(f"Game Clear", 0, (0,255,0))
+            img_rct = bullet_img.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT/2)
+            screen.blit(bullet_img, img_rct)
+
+            player.change_img(9, 10, 250)
+            player.update(key_lst,dtime)
+            player_group.draw(screen)
+            pg.display.update()
+            time.sleep(2)
+            return
+        suvive_time_tmr += dtime
 
         # 数秒おきに敵をスポーンさせる処理
         if enemy_spawn_interval_tmr > enemy_spawn_interval_sec:
@@ -634,66 +667,20 @@ def main():
             boss_spawn_interval_tmr = 0
         boss_spawn_interval_tmr += dtime
 
-        # 銃弾とボスの攻撃の当たり判定処理
-        pg.sprite.groupcollide(flame, bullets, True, True)
-
-
-        # 敵とプレイヤーの当たり判定処理
-        for _ in pg.sprite.spritecollide(player, enemies, False):
-            player.give_damage(10)
-
-        # 背景の更新＆描画処理
+        # 背景
         background.update()
-        background.draw(screen)
-
-        # ゲームオーバー処理
-        # TODO: この位置にゲームオーバーがあるのは何となく微妙なので書き直す
-        if player.hp <= 0:
-            font = pg.font.Font(None, 250)
-            bullet_img = font.render(f"Game Over", 0, (255,0,0))
-            img_rct = bullet_img.get_rect()
-            img_rct.center = (WIDTH/2, HEIGHT/2)
-            screen.blit(bullet_img, img_rct)
-
-            player.change_img(8, 10, 250)
-            player.update(key_lst,dtime)
-            player_group.draw(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
-        
-        if int(suvivetime) >= 60:
-            gameFlag = True
-
-        font = pg.font.Font(None, 250)
-        bullet_img = font.render(f"{int(60 - suvivetime)}", 0, (0,255,0))
-        img_rct = bullet_img.get_rect()
-        img_rct.center = (WIDTH/2, 100)
-        screen.blit(bullet_img, img_rct)
-        
-        # ゲームクリアの処理
-        if gameFlag == True:
-            # game clear
-            font = pg.font.Font(None, 250)
-            bullet_img = font.render(f"Game Clear", 0, (0,255,0))
-            img_rct = bullet_img.get_rect()
-            img_rct.center = (WIDTH/2, HEIGHT/2)
-            screen.blit(bullet_img, img_rct)
-
-            player.change_img(9, 10, 250)
-            player.update(key_lst,dtime)
-            player_group.draw(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
         
         # プレイヤー更新処理
         player.update(key_lst,dtime)
-        camera.update(dtime)
-
+        # スコアに応じてプレイヤーの攻撃を強化する
+        if score.score >= 500 and score.score < 1500:
+            player.attack_interval = 0.1
+        elif score.score >= 1500:
+            player.attack_interval = 0.1
+            player.attack_number = 3
         # 数秒おきにマウス方向に銃弾を飛ばす
-        if clk > player.attack_interval:
-            clk = 0
+        if player_shoot_interval_tmr > player.attack_interval:
+            player_shoot_interval_tmr = 0
             mouse_pos = list(pg.mouse.get_pos())
             mouse_pos[0] -= screen.get_width() / 2
             mouse_pos[1] -= screen.get_height() / 2
@@ -706,27 +693,37 @@ def main():
             for b in bs:
                 bullets.add(b)
             pg.mixer.Sound("ex05/fig/se_bullet.mp3").play()
+        player_shoot_interval_tmr += dtime
 
-        # 敵の更新処理
+        camera.update(dtime)
         enemies.update(dtime)
-        # 銃弾の更新処理
+        # 敵とプレイヤーの当たり判定処理
+        for _ in pg.sprite.spritecollide(player, enemies, False):
+            player.give_damage(10)
+
         bullets.update(dtime, score)
-        # ボスの攻撃の更新処理
         flame.update(dtime, score)
-        # エフェクトの更新処理
+        # 銃弾とボスの攻撃の当たり判定処理
+        pg.sprite.groupcollide(flame, bullets, True, True)
+
         effect_group.update(dtime)
 
-        # 描画周りの処理
-        player_group.draw(screen)
+        # 描画処理
+        background.draw(screen)
         bullets.draw(screen)
         enemies.draw(screen)
         flame.draw(screen)
-        score.update(screen)
         effect_group.draw(screen)
+        player_group.draw(screen)
+        # UI
+        score.update(screen)
+        font = pg.font.Font(None, 250)
+        bullet_img = font.render(f"{int(SURVIVE_TIME_SEC - suvive_time_tmr)}", 0, (0, 255, 0))
+        img_rct = bullet_img.get_rect()
+        img_rct.center = (WIDTH / 2, 100)
+        screen.blit(bullet_img, img_rct)
         pg.display.update()
 
-        suvivetime += dtime
-        clk += dtime
         dtime = clock.tick(max_fps) / 1000
 
 
