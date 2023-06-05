@@ -617,15 +617,26 @@ def main():
         if player.hp <= 0:
             background.update()
             background.draw(screen)
-            font = pg.font.Font(None, 250)
-            bullet_img = font.render(f"Game Over", 0, (255,0,0))
-            img_rct = bullet_img.get_rect()
-            img_rct.center = (WIDTH/2, HEIGHT/2)
-            screen.blit(bullet_img, img_rct)
+            black = pg.Surface((WIDTH, HEIGHT))
+            black.fill((0,0,0))
+            black.set_alpha(128)
+            screen.blit(black, (0,0))
 
             player.change_img(8, 10, 250)
             player.update(key_lst,dtime)
             player_group.draw(screen)
+
+            font = pg.font.Font(None, 250)
+            score_text = font.render(f"Game Over", 0, (255,0,0))
+            img_rct = score_text.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT/4)
+            screen.blit(score_text, img_rct)
+
+            font = pg.font.Font(None, 128)
+            score_text = font.render(f"Score: {score.score}", 0, (255,255,255))
+            img_rct = score_text.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT * 3/4)
+            screen.blit(score_text, img_rct)
             pg.display.update()
             time.sleep(2)
             return
@@ -636,16 +647,26 @@ def main():
         if gameFlag:
             background.update()
             background.draw(screen)
+            black = pg.Surface((WIDTH, HEIGHT))
+            black.fill((0,0,0))
+            black.set_alpha(128)
+            screen.blit(black, (0,0))
             # game clear
-            font = pg.font.Font(None, 250)
-            bullet_img = font.render(f"Game Clear", 0, (0,255,0))
-            img_rct = bullet_img.get_rect()
-            img_rct.center = (WIDTH/2, HEIGHT/2)
-            screen.blit(bullet_img, img_rct)
-
             player.change_img(9, 10, 250)
             player.update(key_lst,dtime)
             player_group.draw(screen)
+
+            font = pg.font.Font(None, 250)
+            score_text = font.render(f"Game Clear", 0, (0,255,0))
+            img_rct = score_text.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT/4)
+            screen.blit(score_text, img_rct)
+
+            font = pg.font.Font(None, 128)
+            score_text = font.render(f"Score: {score.score}", 0, (255,255,255))
+            img_rct = score_text.get_rect()
+            img_rct.center = (WIDTH/2, HEIGHT * 3/4)
+            screen.blit(score_text, img_rct)
             pg.display.update()
             time.sleep(2)
             return
@@ -713,9 +734,9 @@ def main():
             direction =  calc_orientation(player.rect.center, (mouse_pos[0] + camera.center_pos[0], mouse_pos[1] + camera.center_pos[1]))
             angle = math.degrees(math.atan2(direction[1], direction[0]))
 
-            bullet_img = pg.Surface((20, 10))
-            pg.draw.rect(bullet_img, (255, 0, 0), bullet_img.get_rect())
-            bs = gen_beams(bullet_img, player, angle, enemies, bullet_count=player.attack_number, speed=1000)
+            score_text = pg.Surface((20, 10))
+            pg.draw.rect(score_text, (255, 0, 0), score_text.get_rect())
+            bs = gen_beams(score_text, player, angle, enemies, bullet_count=player.attack_number, speed=1000)
             for b in bs:
                 bullets.add(b)
             pg.mixer.Sound("ex05/fig/se_bullet.mp3").play()
@@ -762,10 +783,10 @@ def main():
             pg.mixer.Sound("ex05/fig/se_powerup.mp3").play()
 
         font = pg.font.Font(None, 128)
-        bullet_img = font.render(f"{int(SURVIVE_TIME_SEC - suvive_time_tmr)}", 0, (0, 255, 0))
-        img_rct = bullet_img.get_rect()
+        score_text = font.render(f"{int(SURVIVE_TIME_SEC - suvive_time_tmr)}", 0, (0, 255, 0))
+        img_rct = score_text.get_rect()
         img_rct.midtop = (WIDTH / 2, 20)
-        screen.blit(bullet_img, img_rct)
+        screen.blit(score_text, img_rct)
         pg.display.update()
 
         dtime = clock.tick(max_fps) / 1000
