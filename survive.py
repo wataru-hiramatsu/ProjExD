@@ -404,7 +404,7 @@ class Enemy(Enemy_Base):
     """
     # TODO: グループ周りの引数が多すぎるのでなんとかしたい
     # （この規模ならGameManagerクラスを作って、グループ達をそのクラス変数として持たせてどこからもアクセス出来るようにしてもいいかも）
-    def __init__(self, spawn_point: list[int, int], attack_target: Character, effect_group:pg.sprite.Group, hp=20, score=30):
+    def __init__(self, spawn_point: list[int, int], attack_target: Character, effect_group:pg.sprite.Group, hp=20, score=30, speed=100):
         """
         敵を生成する関数
         引数3: 攻撃を加える対象
@@ -414,7 +414,7 @@ class Enemy(Enemy_Base):
         imgs[1] = pg.transform.scale(imgs[1],(random.randint(90,150),random.randint(90,150)))
         imgs[2] = pg.transform.scale(imgs[2],(random.randint(90,150),random.randint(90,150)))
         super().__init__(random.choice(imgs), spawn_point, hp, effect_group, score=score)
-        self.speed = 100
+        self.speed = speed
         self.attack_target = attack_target
 
     def update(self, dtime):
@@ -435,13 +435,20 @@ class BOSS(Enemy_Base):
     """
     ATTACK_INTERVAL_SEC = 1.0
 
-    def __init__(self, spawn_point: list[int, int], attack_target: Character, effect_group:pg.sprite.Group, enemy_bullet_group: pg.sprite.Group, hp=50, score=40):
+    def __init__(self,
+                 spawn_point: list[int, int],
+                 attack_target: Character,
+                 effect_group:pg.sprite.Group,
+                 enemy_bullet_group: pg.sprite.Group,
+                 hp=50,
+                 score=40,
+                 speed=100):
         """
         ボスを生成する関数
         引数3: 攻撃を加える対象
         """
         super().__init__((pg.transform.rotozoom((pg.image.load(f"ex05/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, effect_group, score=score)
-        self.speed = 100
+        self.speed = speed
         self.attack_target = attack_target
         self.enemy_bullet_group = enemy_bullet_group
         self._attack_interval_tmr = 0.0
@@ -579,7 +586,11 @@ def main():
     score = Score(camera)
 
     clk = 0
+    enemy_spawn_interval_sec = 0.5
     enemy_spawn_interval_tmr = 0
+    fast_enemy_spawn_interval_sec = 3
+    fast_enemy_spawn_interval_tmr = 0
+    boss_spawn_interval_sec = 3
     boss_spawn_interval_tmr = 0
     suvivetime = 0
 
@@ -606,20 +617,20 @@ def main():
             player.attack_number = 3
 
         # 数秒おきに敵をスポーンさせる処理
-        if enemy_spawn_interval_tmr > 0.5:
+        if enemy_spawn_interval_tmr > enemy_spawn_interval_sec:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
             enemies.add(Enemy(get_random_spawn_pos(), player, effect_group))
             enemy_spawn_interval_tmr = 0
         enemy_spawn_interval_tmr += dtime
 
-        if boss_spawn_interval_tmr > 3:
+        if fast_enemy_spawn_interval_tmr > fast_enemy_spawn_interval_sec:
+            enemies.add(Enemy(get_random_spawn_pos(), player, effect_group, speed=300, score=50, hp=10))
+            fast_enemy_spawn_interval_tmr = 0
+        fast_enemy_spawn_interval_tmr += dtime
+
+        if boss_spawn_interval_tmr > boss_spawn_interval_sec:
             # カメラ中心位置から何pxか離れた位置に敵をスポーン
-            enemies.add(BOSS(
-                get_random_spawn_pos(),
-                player,
-                effect_group,
-                flame)
-            )
+            enemies.add(BOSS(get_random_spawn_pos(), player, effect_group, flame))
             boss_spawn_interval_tmr = 0
         boss_spawn_interval_tmr += dtime
 
