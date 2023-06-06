@@ -802,6 +802,12 @@ def main():
             img_rct = muteki_text.get_rect()
             img_rct.bottomright = (WIDTH, HEIGHT)
             screen.blit(muteki_text, img_rct)
+        
+        if max_fps != 60:
+            fps_text = font.render(f"Debug: FPS: {max_fps}", 0, (255, 255, 255))
+            img_rct = fps_text.get_rect()
+            img_rct.bottomright = (WIDTH, HEIGHT - 64)
+            screen.blit(fps_text, img_rct)
         pg.display.update()
 
         dtime = clock.tick(max_fps) / 1000
