@@ -595,6 +595,8 @@ def main():
     score_thresholds = [90, 500, 1000, 4000]
     next_score = score_thresholds[0]
 
+    is_muteki = False
+
     SURVIVE_TIME_SEC = 60
 
     while True:
@@ -611,6 +613,12 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_F3:
                 max_fps = 15
                 print(f"MAX FPS: {max_fps}")
+            if event.type == pg.KEYDOWN and event.key == pg.K_F4:
+                is_muteki = not is_muteki
+        
+        # debug
+        if is_muteki:
+            player.hp = player.max_hp
 
         # ゲームオーバー処理
         if player.hp <= 0:
@@ -786,6 +794,14 @@ def main():
         img_rct = score_text.get_rect()
         img_rct.midtop = (WIDTH / 2, 20)
         screen.blit(score_text, img_rct)
+
+        # debug ui
+        font = pg.font.Font(None, 64)
+        if is_muteki:
+            muteki_text = font.render(f"Debug: Enable muteki!!!", 0, (255, 255, 255))
+            img_rct = muteki_text.get_rect()
+            img_rct.bottomright = (WIDTH, HEIGHT)
+            screen.blit(muteki_text, img_rct)
         pg.display.update()
 
         dtime = clock.tick(max_fps) / 1000
