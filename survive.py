@@ -9,7 +9,6 @@ from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
 
-#pg.init()
 pg.mixer.init()
 
 WIDTH = 1600  # ゲームウィンドウの幅
