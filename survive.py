@@ -597,6 +597,7 @@ def main():
 
     is_muteki = False
     is_disable_variable_fps = False
+    is_stop_time = False
 
     SURVIVE_TIME_SEC = 60
 
@@ -618,6 +619,8 @@ def main():
                 is_disable_variable_fps = not is_disable_variable_fps
             if event.type == pg.KEYDOWN and event.key == pg.K_F5:
                 is_muteki = not is_muteki
+            if event.type == pg.KEYDOWN and event.key == pg.K_F6:
+                is_stop_time = not is_stop_time
         
         # debug
         if is_muteki:
@@ -680,7 +683,8 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
-        suvive_time_tmr += dtime
+        if not is_stop_time:
+            suvive_time_tmr += dtime
 
         # スコアに応じてプレイヤーの攻撃を強化する
         if score.score < score_thresholds[0]:
@@ -816,6 +820,12 @@ def main():
             fps_text = font.render(f"Debug: Disable variable fps", 0, (255, 255, 255))
             img_rct = fps_text.get_rect()
             img_rct.bottomright = (WIDTH, HEIGHT - 128)
+            screen.blit(fps_text, img_rct)
+        
+        if is_stop_time:
+            fps_text = font.render(f"Debug: Stop time", 0, (255, 255, 255))
+            img_rct = fps_text.get_rect()
+            img_rct.bottomright = (WIDTH, HEIGHT - 192)
             screen.blit(fps_text, img_rct)
         pg.display.update()
 
