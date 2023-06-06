@@ -9,7 +9,7 @@ from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
 
-pg.mixer.init()
+# pg.mixer.init()
 
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
@@ -146,16 +146,16 @@ class Character(pg.sprite.Sprite):
         ダメージを与えられた際に呼ばれる関数。
         """
         # カメラからの距離によって音量を変える
-        volume_range = 1500
-        volume = max((volume_range - calc_norm(self.rect.center, Camera.active_camera.center_pos)) / volume_range, 0)
-        if self.hp > 0:
-            sound = pg.mixer.Sound("./fig/se_enemy_damage.mp3")
-            sound.set_volume(volume)
-            sound.play()
-        else:
-            sound = pg.mixer.Sound("./fig/se_enemy_death.mp3")
-            sound.set_volume(volume)
-            sound.play()
+        # volume_range = 1500
+        # volume = max((volume_range - calc_norm(self.rect.center, Camera.active_camera.center_pos)) / volume_range, 0)
+        # if self.hp > 0:
+        #     sound = pg.mixer.Sound("./fig/se_enemy_damage.mp3")
+        #     sound.set_volume(volume)
+        #     sound.play()
+        # else:
+        #     sound = pg.mixer.Sound("./fig/se_enemy_death.mp3")
+        #     sound.set_volume(volume)
+        #     sound.play()
 
     def update(self, delta_time: float):
         # 無敵時間を減らす処理
@@ -753,7 +753,7 @@ def main():
             bs = gen_beams(score_text, player, angle, enemies, bullet_count=player.attack_number, speed=1000)
             for b in bs:
                 bullets.add(b)
-            pg.mixer.Sound("./fig/se_bullet.mp3").play()
+            # pg.mixer.Sound("./fig/se_bullet.mp3").play()
         player_shoot_interval_tmr += dtime
 
         camera.update(dtime)
@@ -793,8 +793,8 @@ def main():
             percent = (score.score - prev_score) / (next_score - prev_score)
             pg.draw.rect(screen, (0, 0, 0), pg.Rect(0, 0, camera.screen.get_width(), 20))
             pg.draw.rect(screen, (255, 255, 0), pg.Rect(0, 5, camera.screen.get_width() * percent, 10))
-        if next_score != next_score_tmp:
-            pg.mixer.Sound("./fig/se_powerup.mp3").play()
+        # if next_score != next_score_tmp:
+        #     pg.mixer.Sound("./fig/se_powerup.mp3").play()
 
         font = pg.font.Font(None, 128)
         score_text = font.render(f"{int(SURVIVE_TIME_SEC - suvive_time_tmr)}", 0, (0, 255, 0))
