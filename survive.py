@@ -596,6 +596,7 @@ def main():
     next_score = score_thresholds[0]
 
     is_muteki = False
+    is_disable_variable_fps = False
 
     SURVIVE_TIME_SEC = 60
 
@@ -614,6 +615,8 @@ def main():
                 max_fps = 15
                 print(f"MAX FPS: {max_fps}")
             if event.type == pg.KEYDOWN and event.key == pg.K_F4:
+                is_disable_variable_fps = not is_disable_variable_fps
+            if event.type == pg.KEYDOWN and event.key == pg.K_F5:
                 is_muteki = not is_muteki
         
         # debug
@@ -808,9 +811,17 @@ def main():
             img_rct = fps_text.get_rect()
             img_rct.bottomright = (WIDTH, HEIGHT - 64)
             screen.blit(fps_text, img_rct)
+        
+        if is_disable_variable_fps:
+            fps_text = font.render(f"Debug: Disable variable fps", 0, (255, 255, 255))
+            img_rct = fps_text.get_rect()
+            img_rct.bottomright = (WIDTH, HEIGHT - 128)
+            screen.blit(fps_text, img_rct)
         pg.display.update()
 
         dtime = clock.tick(max_fps) / 1000
+        if is_disable_variable_fps:
+            dtime = 1 / 30
 
 
 if __name__ == "__main__":
