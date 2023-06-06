@@ -150,11 +150,11 @@ class Character(pg.sprite.Sprite):
         volume_range = 1500
         volume = max((volume_range - calc_norm(self.rect.center, Camera.active_camera.center_pos)) / volume_range, 0)
         if self.hp > 0:
-            sound = pg.mixer.Sound("ProjExD/fig/se_enemy_damage.mp3")
+            sound = pg.mixer.Sound("./fig/se_enemy_damage.mp3")
             sound.set_volume(volume)
             sound.play()
         else:
-            sound = pg.mixer.Sound("ProjExD/fig/se_enemy_death.mp3")
+            sound = pg.mixer.Sound("./fig/se_enemy_death.mp3")
             sound.set_volume(volume)
             sound.play()
 
@@ -230,7 +230,7 @@ class Player(Character):
         引数3: ダメージを受けた際の無敵時間（任意）
         """
         img0 = pg.transform.rotozoom(
-            pg.image.load(f"ProjExD/fig/3.png"), 0, self.IMAGE_SCALE)
+            pg.image.load(f"./fig/3.png"), 0, self.IMAGE_SCALE)
         img = pg.transform.flip(img0, True, False)
         self.move_imgs = {
             (+1, 0): img,  # 右
@@ -256,7 +256,7 @@ class Player(Character):
         引数2: 画像の優先度
         引数3: 表示する期間（Noneで無期限）
         """
-        self.set_image(pg.transform.rotozoom(pg.image.load(f"ProjExD/fig/{num}.png"), 0, self.IMAGE_SCALE), priority, life)
+        self.set_image(pg.transform.rotozoom(pg.image.load(f"./fig/{num}.png"), 0, self.IMAGE_SCALE), priority, life)
 
     def damaged(self):
         """
@@ -409,7 +409,7 @@ class Enemy(Enemy_Base):
         敵を生成する関数
         引数3: 攻撃を加える対象
         """
-        imgs = [pg.image.load(f"ProjExD/fig/zonbi{i}.png") for i in range(1, 4)]
+        imgs = [pg.image.load(f"./fig/zonbi{i}.png") for i in range(1, 4)]
         imgs[0] = pg.transform.scale(imgs[0],(random.randint(90,150),random.randint(90,150)))
         imgs[1] = pg.transform.scale(imgs[1],(random.randint(90,150),random.randint(90,150)))
         imgs[2] = pg.transform.scale(imgs[2],(random.randint(90,150),random.randint(90,150)))
@@ -447,12 +447,12 @@ class BOSS(Enemy_Base):
         ボスを生成する関数
         引数3: 攻撃を加える対象
         """
-        super().__init__((pg.transform.rotozoom((pg.image.load(f"ProjExD/fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, effect_group, score=score)
+        super().__init__((pg.transform.rotozoom((pg.image.load(f"./fig/alien2.png")), 0.0, 3.0)), spawn_point, hp, effect_group, score=score)
         self.speed = speed
         self.attack_target = attack_target
         self.enemy_bullet_group = enemy_bullet_group
         self._attack_interval_tmr = 0.0
-        self.bullet_img = pg.transform.rotozoom((pg.image.load("ProjExD/fig/flame.png")), 0, 0.1)
+        self.bullet_img = pg.transform.rotozoom((pg.image.load("./fig/flame.png")), 0, 0.1)
 
     def update(self, delta_time: float):
         """
@@ -485,7 +485,7 @@ class Background(pg.sprite.Sprite):
         引数2: 背景のデフォルト生成位置からどれだけずらすか
         """
         super().__init__()
-        self.image = pg.image.load("ProjExD/fig/background.png")
+        self.image = pg.image.load("./fig/background.png")
         self.rect = self.image.get_rect()
         self.rect.topleft = (0, 0)
         self.offset = offset
@@ -739,7 +739,7 @@ def main():
             bs = gen_beams(score_text, player, angle, enemies, bullet_count=player.attack_number, speed=1000)
             for b in bs:
                 bullets.add(b)
-            pg.mixer.Sound("ProjExD/fig/se_bullet.mp3").play()
+            pg.mixer.Sound("./fig/se_bullet.mp3").play()
         player_shoot_interval_tmr += dtime
 
         camera.update(dtime)
@@ -780,7 +780,7 @@ def main():
             pg.draw.rect(screen, (0, 0, 0), pg.Rect(0, 0, camera.screen.get_width(), 20))
             pg.draw.rect(screen, (255, 255, 0), pg.Rect(0, 5, camera.screen.get_width() * percent, 10))
         if next_score != next_score_tmp:
-            pg.mixer.Sound("ProjExD/fig/se_powerup.mp3").play()
+            pg.mixer.Sound("./fig/se_powerup.mp3").play()
 
         font = pg.font.Font(None, 128)
         score_text = font.render(f"{int(SURVIVE_TIME_SEC - suvive_time_tmr)}", 0, (0, 255, 0))
